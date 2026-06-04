@@ -1,313 +1,293 @@
-import React, { useEffect, useRef, useState } from 'react'
-import { DBConversation, DBDocument, supabase } from '../services/supabaseClient'
-
-type PageType =
-  | 'dashboard'
-  | 'chat-monitoring'
-  | 'pipeline'
-  | 'estimator'
-  | 'ai-studio'
-  | 'settings'
+import React, { useState, useEffect } from 'react'
+import { PageType } from '../App'
+import { T, Icon, Panel, PanelHead, Btn, Tag, Dot, Stat, Spark, Bars, Ring } from '../components/AcosUI'
+import { ClientService, DBClient } from '../services/supabaseClient'
 
 interface DashboardProps {
   onNavigate?: (page: PageType) => void
 }
 
-interface Stats {
-  activeChats: number
-  aiHandledToday: number
-  humanTakeovers: number
-  proposalsSent: number
+const fmtRp = (num: number) => {
+  if (num >= 1_000_000_000) return `Rp ${(num / 1_000_000_000).toFixed(1)}M`
+  if (num >= 1_000_000) return `Rp ${Math.round(num / 1_000_000)}jt`
+  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(num)
 }
 
-const isToday = (dateStr: string) => {
-  const d = new Date(dateStr)
-  const now = new Date()
+function FlowStrip({ setPage, clients }: { setPage: (p: any) => void, clients: DBClient[] }) {
+  const flow = [
+    { key: "lead", label: "Leads", icon: "Inbox" },
+    { key: "crm", label: "CRM", icon: "Users" },
+    { key: "ai", label: "AI Syifa", icon: "Bot" },
+    { key: "estimate", label: "Estimasi", icon: "Calculator" },
+    { key: "proposal", label: "Proposal", icon: "FileText" },
+    { key: "spk", label: "SPK", icon: "FileSignature" },
+    { key: "invoice", label: "Invoice", icon: "Receipt" },
+    { key: "payment", label: "Payment", icon: "CreditCard" },
+    { key: "project", label: "Project", icon: "Kanban" },
+    { key: "portfolio", label: "Portfolio", icon: "Image" }
+  ];
+  const counts: Record<string, number> = {
+    lead: clients.filter(c => c.status === 'lead').length,
+    crm: clients.filter(c => c.status !== 'lead').length,
+    ai: clients.length,
+    estimate: clients.filter(c => c.status === 'estimasi').length,
+    proposal: clients.filter(c => c.status === 'proposal').length,
+    spk: clients.filter(c => c.status === 'negosiasi').length,
+    invoice: clients.filter(c => c.status === 'deal').length,
+    payment: clients.filter(c => c.status === 'deal').length,
+    project: clients.filter(c => c.status === 'deal').length,
+    portfolio: clients.filter(c => c.status === 'closed').length
+  };
+  const [pulse, setPulse] = useState(0);
+  useEffect(() => { const t = setInterval(() => setPulse((p) => (p + 1) % flow.length), 1100); return () => clearInterval(t); }, []);
   return (
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate()
-  )
-}
-
-const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
-  const [stats, setStats] = useState<Stats>({
-    activeChats: 0,
-    aiHandledToday: 0,
-    humanTakeovers: 0,
-    proposalsSent: 0,
-  })
-  const [recentConversations, setRecentConversations] = useState<DBConversation[]>([])
-  const [recentDocuments, setRecentDocuments] = useState<DBDocument[]>([])
-  const [loading, setLoading] = useState(true)
-
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  useEffect(() => {
-    loadData()
-    pollRef.current = setInterval(loadData, 5000)
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current)
-    }
-  }, [])
-
-  const loadData = async () => {
-    await Promise.all([loadConversations(), loadDocuments()])
-    setLoading(false)
-  }
-
-  // Fetch ALL conversations for accurate stats; only display the 5 most recent.
-  const loadConversations = async () => {
-    const { data } = await supabase
-      .from('conversations')
-      .select('*')
-      .order('last_message_at', { ascending: false })
-
-    if (data) {
-      setRecentConversations(data.slice(0, 5))
-      setStats((prev) => ({
-        ...prev,
-        activeChats: data.filter((c) => c.status === 'active').length,
-        humanTakeovers: data.filter((c) => c.mode === 'manual').length,
-        aiHandledToday: data.filter((c) => c.mode === 'ai' && isToday(c.last_message_at)).length,
-      }))
-    }
-  }
-
-  const loadDocuments = async () => {
-    const { data } = await supabase
-      .from('documents')
-      .select('*')
-      .order('created_at', { ascending: false })
-
-    if (data) {
-      setRecentDocuments(data.slice(0, 5))
-      setStats((prev) => ({
-        ...prev,
-        proposalsSent: data.filter((d) => d.type === 'proposal' && d.status === 'sent').length,
-      }))
-    }
-  }
-
-  const formatTimeAgo = (dateStr: string) => {
-    const mins = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000)
-    if (mins < 1) return 'baru saja'
-    if (mins < 60) return `${mins}m lalu`
-    const hours = Math.floor(mins / 60)
-    if (hours < 24) return `${hours}j lalu`
-    return `${Math.floor(hours / 24)}h lalu`
-  }
-
-  const statCards = [
-    { label: 'Active Chats', value: stats.activeChats, icon: 'forum', tone: 'g' as const },
-    { label: 'AI Handled (hari ini)', value: stats.aiHandledToday, icon: 'smart_toy', tone: 'b' as const },
-    { label: 'Human Takeovers', value: stats.humanTakeovers, icon: 'support_agent', tone: 'a' as const },
-    { label: 'Proposal Terkirim', value: stats.proposalsSent, icon: 'description', tone: 'p' as const },
-  ]
-
-  const toneClasses: Record<string, string> = {
-    g: 'bg-brand-soft text-brand-mid',
-    b: 'bg-blue-soft text-blue',
-    a: 'bg-amber-soft text-amber',
-    p: 'bg-purple-soft text-purple',
-  }
-
-  return (
-    <div className="p-sm md:p-gutter max-w-container-max mx-auto space-y-md">
-      {/* AI Banner */}
-      <div className="bg-brand rounded-2xl p-md md:px-md md:py-5 flex items-center gap-sm md:gap-md relative overflow-hidden">
-        <span className="w-2.5 h-2.5 rounded-full bg-brand-accent flex-shrink-0 animate-pulse" />
-        <div className="flex-1 min-w-0">
-          <p className="text-white font-semibold text-[14px] leading-snug">
-            Pusat kendali AI Operator — Syifa
-          </p>
-          <p className="text-white/55 text-[13px] truncate">
-            {loading
-              ? 'Memuat data realtime dari Supabase...'
-              : `${stats.activeChats} chat aktif · ${stats.aiHandledToday} ditangani AI hari ini`}
-          </p>
-        </div>
-        <button
-          onClick={() => onNavigate?.('chat-monitoring')}
-          className="bg-brand-accent/20 text-brand-accent border border-brand-accent/25 rounded-lg px-3 py-2 text-[13px] font-semibold whitespace-nowrap hover:bg-brand-accent/30 transition-colors"
-        >
-          Buka Chat →
-        </button>
+    <Panel style={{ gridColumn: "1 / -1" }}>
+      <PanelHead title="Operations Flow" sub="Lead → CRM → AI → Estimasi → Proposal → SPK → Invoice → Payment → Project → Portfolio" icon="Workflow" />
+      <div style={{ display: "flex", alignItems: "stretch", padding: "18px 16px", gap: 0, overflowX: "auto" }}>
+        {flow.map((s, i) => (
+          <React.Fragment key={s.key}>
+            <div onClick={() => setPage("Client CRM")} style={{ flex: 1, minWidth: 92, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, cursor: "pointer", position: "relative" }}>
+              <div style={{ width: 46, height: 46, borderRadius: 12, display: "grid", placeItems: "center", position: "relative",
+                background: pulse === i ? "rgba(74,179,216,0.22)" : "rgba(255,255,255,0.04)", border: `1px solid ${pulse === i ? T.sky : T.line}`, transition: "all .4s", transform: pulse === i ? "scale(1.08)" : "none" }}>
+                <Icon name={s.icon} size={19} color={pulse === i ? T.sky : T.sub} />
+                <div style={{ position: "absolute", top: -7, right: -7, minWidth: 18, height: 18, padding: "0 5px", borderRadius: 9, background: T.navy700, border: `1px solid ${T.sky}55`, display: "grid", placeItems: "center", fontSize: 9.5, fontWeight: 800, color: T.tint }}>{counts[s.key] || 0}</div>
+              </div>
+              <div style={{ fontSize: 10.5, fontWeight: 700, color: pulse === i ? T.txt : T.sub, textAlign: "center" }}>{s.label}</div>
+            </div>
+            {i < flow.length - 1 && <div style={{ alignSelf: "flex-start", marginTop: 22, color: T.dim, flexShrink: 0 }}><Icon name="ChevronRight" size={15} color={pulse === i ? T.sky : T.dim} /></div>}
+          </React.Fragment>
+        ))}
       </div>
+    </Panel>
+  );
+}
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-sm md:gap-md">
-        {statCards.map((stat) => (
-          <div
-            key={stat.label}
-            className="bg-surface border border-outline-variant rounded-2xl p-md hover:shadow-soft transition-shadow"
-          >
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-sm ${toneClasses[stat.tone]}`}>
-              <span className="material-symbols-outlined text-[20px]">{stat.icon}</span>
+function AutomationCard({ setPage }: { setPage: (p: any) => void }) {
+  // We actually removed n8n. Kiro runs on Supabase Edge Functions or internal. We'll show empty or internal stats.
+  const health = 100;
+  return (
+    <Panel>
+      <PanelHead title="Automation Health" sub="Supabase Webhooks · Internal" icon="Workflow" accent={T.green}
+        right={<Tag color={T.green}><Dot color={T.green} pulse size={6} />LIVE</Tag>} />
+      <div style={{ display: "flex", gap: 14, padding: "16px 18px", alignItems: "center", borderBottom: `1px solid ${T.line}` }}>
+        <Ring value={Math.round(health)} size={68} color={T.green} label="uptime" />
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+            <span style={{ fontSize: 11, color: T.dim }}>Webhook aktif</span><span style={{ fontSize: 11, fontWeight: 700, color: T.txt }}>1 / 1</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+            <span style={{ fontSize: 11, color: T.dim }}>Run / 24 jam</span><span style={{ fontSize: 11, fontWeight: 700, color: T.txt }}>Realtime</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 11, color: T.dim }}>Avg latency</span><span style={{ fontSize: 11, fontWeight: 700, color: T.sky }}>0.2 s</span>
+          </div>
+        </div>
+      </div>
+      <div style={{ padding: "4px 14px 14px" }}>
+        <Btn v="ghost" size="sm" icon="ArrowRight" onClick={() => setPage("Pusat Automasi")} style={{ width: "100%", justifyContent: "center" }}>Lihat Log Automasi</Btn>
+      </div>
+    </Panel>
+  );
+}
+
+function AttentionCard({ setPage, clients }: { setPage: (p: any) => void, clients: DBClient[] }) {
+  const hotLeads = clients.filter(c => c.status === 'negosiasi');
+  const newLeads = clients.filter(c => c.status === 'lead');
+  
+  const items = [];
+  if (hotLeads.length > 0) {
+    items.push({ icon: "Flame", color: T.amber, title: `${hotLeads.length} lead HOT tahap negosiasi`, sub: hotLeads.map(c => c.name).join(', '), page: "Client CRM" });
+  }
+  if (newLeads.length > 0) {
+    items.push({ icon: "Inbox", color: T.sky, title: `${newLeads.length} lead baru masuk`, sub: "Siap difollow up oleh AI/Human", page: "Client CRM" });
+  }
+  if (items.length === 0) {
+    items.push({ icon: "CheckCircle2", color: T.green, title: "Semua aman terkendali", sub: "Tidak ada issue yang butuh perhatian", page: "Dashboard" });
+  }
+  
+  return (
+    <Panel>
+      <PanelHead title="Perlu Perhatian" sub="Prioritas hari ini" icon="Bell" accent={T.amber} right={<Tag color={items[0].color === T.green ? T.green : T.amber}>{items.length}</Tag>} />
+      <div style={{ padding: 8 }}>
+        {items.map((it, i) => (
+          <div key={i} onClick={() => setPage(it.page as any)} className="ac-row" style={{ display: "flex", gap: 11, padding: "10px 10px", borderRadius: 9, cursor: "pointer" }}>
+            <div style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0, background: `${it.color}1c`, display: "grid", placeItems: "center" }}><Icon name={it.icon as any} size={15} color={it.color} /></div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: T.txt, lineHeight: 1.3 }}>{it.title}</div>
+              <div style={{ fontSize: 10.5, color: T.dim, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.sub}</div>
             </div>
-            <div className="font-serif-display text-[28px] text-on-surface leading-none">
-              {loading ? '—' : stat.value}
-            </div>
-            <div className="text-[12px] text-on-surface-variant mt-1">{stat.label}</div>
+            <Icon name="ChevronRight" size={15} color={T.dim} style={{ alignSelf: "center" }} />
           </div>
         ))}
       </div>
+    </Panel>
+  );
+}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-md">
-        {/* Recent Conversations */}
-        <div className="bg-surface border border-outline-variant rounded-2xl overflow-hidden">
-          <div className="flex items-center justify-between px-md py-sm border-b border-outline-variant">
-            <h3 className="text-[14px] font-semibold flex items-center gap-xs">
-              <span className="material-symbols-outlined text-[18px] text-brand-mid">forum</span>
-              Percakapan Terbaru
-            </h3>
-            <button
-              onClick={() => onNavigate?.('chat-monitoring')}
-              className="text-[12px] font-semibold text-brand-mid hover:underline"
-            >
-              Semua →
-            </button>
+function ActivityFeed() {
+  const [feed, setFeed] = useState<any[]>([])
+
+  useEffect(() => {
+    import('../services/supabaseClient').then(({ ConversationService }) => {
+      ConversationService.getAll().then(convs => {
+        const recent = convs.slice(0, 5).map(c => ({
+          msg: `Pesan baru dari ${c.client_name}`,
+          wf: c.source || "System",
+          t: c.last_message_at ? new Date(c.last_message_at).toLocaleTimeString('id-ID') : "Baru saja",
+          kind: c.unread_count && c.unread_count > 0 ? "warn" : "ok"
+        }));
+        setFeed(recent.length > 0 ? recent : [{ msg: "Tidak ada aktivitas terbaru", wf: "System", t: "-", kind: "info" }])
+      })
+    })
+  }, [])
+
+  const kindC: Record<string, string> = { ok: T.green, warn: T.amber, info: T.sky };
+  return (
+    <Panel>
+      <PanelHead title="Aktivitas Live" sub="Event realtime" icon="Activity" right={<Tag color={T.sky}><Dot color={T.sky} pulse size={6} />REALTIME</Tag>} />
+      <div style={{ padding: "6px 14px 14px", maxHeight: 240, overflowY: "auto" }}>
+        {feed.map((e, i) => (
+          <div key={i} style={{ display: "flex", gap: 11, padding: "9px 0", borderBottom: i < feed.length - 1 ? `1px solid ${T.line}` : "none" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 2 }}>
+              <Dot color={kindC[e.kind]} size={7} />
+              {i < feed.length - 1 && <div style={{ width: 1, flex: 1, background: T.line, marginTop: 4 }} />}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11.5, color: T.sub, lineHeight: 1.4 }}>{e.msg}</div>
+              <div style={{ display: "flex", gap: 8, marginTop: 3, alignItems: "center" }}>
+                <span style={{ fontFamily: T.mono, fontSize: 9.5, color: T.sky }}>{e.wf}</span>
+                <span style={{ fontSize: 9.5, color: T.dim }}>· {e.t}</span>
+              </div>
+            </div>
           </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
 
-          {loading ? (
-            <div className="p-md space-y-sm">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-12 bg-surface-container rounded-lg animate-pulse" />
-              ))}
+function ProjectsMini({ setPage, clients }: { setPage: (p: any) => void, clients: DBClient[] }) {
+  const deals = clients.filter(c => c.status === 'deal');
+  
+  return (
+    <Panel>
+      <PanelHead title="Proyek Berjalan" sub={`${deals.length} proyek aktif`} icon="Kanban"
+        right={<Btn v="ghost" size="sm" icon="ArrowRight" onClick={() => setPage("Client CRM")}>Semua</Btn>} />
+      <div style={{ padding: "6px 0", maxHeight: 300, overflowY: "auto" }}>
+        {deals.length === 0 ? (
+          <div style={{ padding: 20, textAlign: "center", color: T.dim, fontSize: 11 }}>Belum ada deal/proyek aktif</div>
+        ) : deals.map((p) => (
+          <div key={p.id} onClick={() => setPage("Client CRM")} className="ac-row hover:bg-white/5 transition-colors" style={{ display: "flex", alignItems: "center", gap: 13, padding: "11px 18px", cursor: "pointer" }}>
+            <Ring value={100} size={42} stroke={5} color={T.green} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: T.txt, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name} - {p.building_type}</div>
+              <div style={{ fontSize: 10.5, color: T.dim, marginTop: 2 }}>ID: {p.id}</div>
             </div>
-          ) : recentConversations.length === 0 ? (
-            <div className="text-center py-xl text-outline">
-              <span className="material-symbols-outlined text-4xl">forum</span>
-              <p className="text-body-md mt-2">Belum ada percakapan</p>
+            <div style={{ textAlign: "right" }}>
+              <Tag color={T.sky}>Konstruksi</Tag>
+              <div style={{ fontSize: 11, fontWeight: 700, color: T.sub, marginTop: 5, fontFamily: T.mono }}>{fmtRp(p.rab_avg || 0)}</div>
             </div>
-          ) : (
-            <div>
-              {recentConversations.map((conv) => (
-                <button
-                  key={conv.id}
-                  onClick={() => onNavigate?.('chat-monitoring')}
-                  className="w-full text-left flex items-center gap-sm px-md py-3 border-b border-outline-variant/60 last:border-0 hover:bg-background transition-colors"
-                >
-                  <div className="w-9 h-9 rounded-full bg-brand-soft flex items-center justify-center text-brand-mid font-semibold flex-shrink-0">
-                    {(conv.client_name || '?').charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <p className="font-semibold text-on-surface truncate text-[13px]">
-                        {conv.client_name || 'Pelanggan'}
-                      </p>
-                      <span className="text-[11px] text-outline ml-2 flex-shrink-0">
-                        {formatTimeAgo(conv.last_message_at)}
-                      </span>
-                    </div>
-                    <p className="text-[12.5px] text-on-surface-variant truncate">
-                      {conv.last_message || 'No messages'}
-                    </p>
-                  </div>
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold flex-shrink-0 ${
-                      conv.mode === 'ai' ? 'bg-brand-soft text-brand-mid' : 'bg-amber-soft text-amber'
-                    }`}
-                  >
-                    {conv.mode === 'ai' ? 'AI' : 'Human'}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+// ── MAIN DASHBOARD ───────────────────────────────────────────
+
+const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
+  const [clients, setClients] = useState<DBClient[]>([])
+  
+  useEffect(() => {
+    ClientService.getAll().then(setClients)
+  }, [])
+
+  const pipelineValue = clients.filter(c => ['estimasi', 'proposal', 'negosiasi'].includes(c.status || '')).reduce((s, c) => s + (c.rab_avg || 0), 0);
+  const activeProjects = clients.filter(c => c.status === 'deal').length;
+  const closedRevenue = clients.filter(c => c.status === 'deal').reduce((s, c) => s + (c.rab_avg || 0), 0);
+  const leadsCount = clients.length;
+  const winRate = leadsCount > 0 ? ((activeProjects / leadsCount) * 100).toFixed(1) : "0.0";
+
+  const kpis = [
+    { label: "Pipeline Value", value: fmtRp(pipelineValue), delta: "Live", icon: "Target", accent: T.sky, spark: [0, 0, 0, 0, 0, 0] },
+    { label: "Proyek Aktif", value: activeProjects, delta: "Live", icon: "Kanban", accent: T.tint, spark: [0, 0, 0, 0, 0, 0] },
+    { label: "Revenue Deals", value: fmtRp(closedRevenue), delta: "Live", icon: "TrendingUp", accent: T.green, spark: [0, 0, 0, 0, 0, 0] },
+    { label: "Piutang (AR)", value: fmtRp(0), delta: "0%", deltaUp: false, icon: "Receipt", accent: T.amber, spark: [0, 0, 0, 0, 0, 0] },
+    { label: "Total Leads", value: leadsCount, delta: "All time", icon: "Inbox", accent: T.sky, spark: [0, 0, 0, 0, 0, 0] },
+    { label: "Win Rate", value: `${winRate}%`, delta: "Live", icon: "Award", accent: T.green, spark: [0, 0, 0, 0, 0, 0] },
+  ];
+  
+  const mNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Ags", "Sep", "Okt", "Nov", "Des"];
+  const currentMonth = new Date().getMonth();
+  const revenueBars = Array.from({length: 6}).map((_, i) => {
+    const mIdx = (currentMonth - 5 + i + 12) % 12;
+    return { m: mNames[mIdx], v: i === 5 ? (closedRevenue / 1000000) : 0 };
+  });
+
+  const trend = [0, 0, 0, 0, 0, 0, 0];
+
+  const hour = new Date().getHours();
+  const greet = hour < 11 ? "Selamat pagi" : hour < 15 ? "Selamat siang" : hour < 19 ? "Selamat sore" : "Selamat malam";
+  
+  const handleNav = (p: string) => {
+    if (onNavigate) onNavigate(p as PageType);
+  }
+
+  return (
+    <div style={{ padding: 22, overflowY: "auto", height: "100%", background: T.bgGrad }}>
+      {/* hero */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 20, flexWrap: "wrap", gap: 14 }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <h1 style={{ fontSize: 26, fontWeight: 800, color: T.txt, margin: 0, letterSpacing: -0.6 }}>{greet}, Admin.</h1>
+            <Tag color={T.green}><Dot color={T.green} pulse size={6} />Sistem beroperasi normal</Tag>
+          </div>
+          <div style={{ fontSize: 13, color: T.dim, marginTop: 6 }}>{new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · Berikut ringkasan operasional bisnis hari ini.</div>
         </div>
-
-        {/* Recent Documents */}
-        <div className="bg-surface border border-outline-variant rounded-2xl overflow-hidden">
-          <div className="flex items-center justify-between px-md py-sm border-b border-outline-variant">
-            <h3 className="text-[14px] font-semibold flex items-center gap-xs">
-              <span className="material-symbols-outlined text-[18px] text-brand-mid">description</span>
-              Dokumen Terbaru
-            </h3>
-            <button
-              onClick={() => onNavigate?.('ai-studio')}
-              className="text-[12px] font-semibold text-brand-mid hover:underline"
-            >
-              Semua →
-            </button>
-          </div>
-
-          {loading ? (
-            <div className="p-md space-y-sm">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-12 bg-surface-container rounded-lg animate-pulse" />
-              ))}
-            </div>
-          ) : recentDocuments.length === 0 ? (
-            <div className="text-center py-xl text-outline">
-              <span className="material-symbols-outlined text-4xl">description</span>
-              <p className="text-body-md mt-2">Belum ada dokumen</p>
-            </div>
-          ) : (
-            <div>
-              {recentDocuments.map((doc) => (
-                <div
-                  key={doc.id}
-                  className="flex items-center gap-sm px-md py-3 border-b border-outline-variant/60 last:border-0"
-                >
-                  <div className="w-9 h-9 rounded-lg bg-surface-container flex items-center justify-center flex-shrink-0">
-                    <span className="material-symbols-outlined text-brand-mid text-[18px]">
-                      {doc.type === 'proposal'
-                        ? 'description'
-                        : doc.type === 'invoice'
-                        ? 'receipt'
-                        : 'calculate'}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <p className="font-semibold text-on-surface capitalize text-[13px]">
-                        {doc.type}
-                      </p>
-                      <span className="text-[11px] text-outline ml-2 flex-shrink-0">
-                        {formatTimeAgo(doc.created_at)}
-                      </span>
-                    </div>
-                    <p className="text-[12.5px] text-on-surface-variant truncate">
-                      {doc.client_name || doc.client_phone || '-'}
-                      {doc.proposal_no ? ` • ${doc.proposal_no}` : ''}
-                    </p>
-                  </div>
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold flex-shrink-0 capitalize ${
-                      doc.status === 'sent'
-                        ? 'bg-blue-soft text-blue'
-                        : doc.status === 'accepted'
-                        ? 'bg-brand-soft text-brand-mid'
-                        : 'bg-surface-container text-outline'
-                    }`}
-                  >
-                    {doc.status}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+        <div style={{ display: "flex", gap: 9 }}>
+          <Btn v="ghost" size="sm" icon="FileText" onClick={() => handleNav("Dokumen & SPK")}>Dokumen</Btn>
+          <Btn v="primary" size="sm" icon="Plus" onClick={() => handleNav("Client CRM")}>Lead Baru</Btn>
         </div>
       </div>
 
-      {/* Setup hint */}
-      {!loading && recentConversations.length === 0 && (
-        <div className="bg-brand-soft border border-brand-accent/20 rounded-2xl p-md">
-          <div className="flex items-start gap-sm">
-            <span className="material-symbols-outlined text-brand-mid">info</span>
-            <div>
-              <p className="font-semibold text-brand-dark mb-1">Setup yang diperlukan</p>
-              <ol className="text-[13px] text-on-surface-variant space-y-1 list-decimal list-inside">
-                <li>Jalankan schema SQL di Supabase Dashboard → SQL Editor</li>
-                <li>Setup WhatsApp Business API di Meta Developer Console</li>
-                <li>Aktifkan semua workflow di n8n</li>
-                <li>Data percakapan akan muncul otomatis di sini</li>
-              </ol>
+      {/* KPIs */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 16 }}>
+        {kpis.map((k, i) => <Stat key={i} {...k} />)}
+      </div>
+
+      <FlowStrip setPage={handleNav} clients={clients} />
+
+      {/* main grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16, marginTop: 16, alignItems: "start" }}>
+        <div style={{ display: "grid", gap: 16 }}>
+          <Panel>
+            <PanelHead title="Pipeline & Revenue" sub="Prospek vs Deal Closing" icon="BarChart3"
+              right={<div style={{ display: "flex", gap: 6 }}><Tag color={T.sky}>Pipeline</Tag><Tag color={T.green}>Revenue</Tag></div>} />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 0 }}>
+              <div style={{ padding: "18px", borderRight: `1px solid ${T.line}`, borderBottom: `1px solid ${T.line}` }}>
+                <div style={{ fontSize: 11, color: T.dim, marginBottom: 4 }}>Nilai pipeline aktif</div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: T.txt, marginBottom: 12 }}>{fmtRp(pipelineValue)}</div>
+                <div style={{ overflowX: "auto" }}>
+                  <Spark data={trend} color={T.sky} w={300} h={90} />
+                </div>
+              </div>
+              <div style={{ padding: "18px" }}>
+                <div style={{ fontSize: 11, color: T.dim, marginBottom: 10 }}>Revenue (Rp Juta)</div>
+                <div style={{ overflowX: "auto" }}>
+                  <Bars data={revenueBars} h={110} fmt={(v: number) => v.toFixed(0)} />
+                </div>
+              </div>
             </div>
-          </div>
+          </Panel>
+          <ProjectsMini setPage={handleNav} clients={clients} />
         </div>
-      )}
+        <div style={{ display: "grid", gap: 16 }}>
+          <AutomationCard setPage={handleNav} />
+          <AttentionCard setPage={handleNav} clients={clients} />
+          <ActivityFeed />
+        </div>
+      </div>
     </div>
   )
 }

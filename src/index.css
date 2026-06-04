@@ -2,9 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── CSS Variables (dark mode default, overridden by applyTheme) ── */
+:root {
+  --bg-background:         #04203a;
+  --bg-surface:            #082a4b;
+  --bg-surface-bright:     #0b3460;
+  --bg-surface-dim:        #06223e;
+  --bg-surface-variant:    #093153;
+  --text-on-background:    #EAF4FB;
+  --text-on-surface:       #EAF4FB;
+  --text-on-surface-variant: #9DBAD2;
+  --text-dim:              #5F7C97;
+  --border-outline:        rgba(255,255,255,0.09);
+  --border-outline-variant: rgba(255,255,255,0.16);
+  --brand-default:         #04203a;
+  --brand-dark:            #022747;
+  --brand-mid:             #082a4b;
+  --brand-soft:            #06223e;
+  --brand-accent:          #4AB3D8;
+  --color-white:           #ffffff;
+}
+
 @layer base {
-  /* Lock the viewport so the app shell never scrolls globally; each page/column
-     manages its own scroll. 100dvh handles the mobile URL bar gracefully. */
   html,
   body,
   #root {
@@ -21,11 +40,11 @@
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
+}
 
-  /* Serif display utility */
-  .font-serif-display {
-    font-family: 'DM Serif Display', Georgia, serif;
-  }
+.ac-bg-grad {
+  background-image: radial-gradient(1100px 620px at 82% -12%, #0c3a64 0%, rgba(12,58,100,0) 60%), 
+                    radial-gradient(900px 600px at -5% 110%, #06294a 0%, rgba(6,41,74,0) 55%);
 }
 
 .material-symbols-outlined {
@@ -36,7 +55,7 @@
   font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
 }
 
-/* ── Default scrollbar — slim ───────────────────────────────── */
+/* ── Default scrollbar — ACOS Dark ───────────────────────────────── */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -45,14 +64,11 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #c2d3ca;
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 10px;
-  border: 2px solid transparent;
-  background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #9bb5a8;
-  background-clip: content-box;
+  background: rgba(255, 255, 255, 0.2);
 }
 
 /* ── Custom scrollbar (content areas) ───────────────────────── */
@@ -66,19 +82,19 @@
   margin: 6px 2px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #b6cabf;
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 10px;
   border: 2px solid transparent;
   background-clip: content-box;
   min-height: 40px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #6e8a7c;
+  background: rgba(255, 255, 255, 0.2);
   background-clip: content-box;
 }
 .custom-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: #b6cabf transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
   overscroll-behavior: contain;
 }
 
@@ -96,20 +112,24 @@
 }
 
 /* ── Cards / surfaces ───────────────────────────────────────── */
+.glass-panel {
+  @apply bg-surface border border-outline rounded-xl;
+}
+
 .glass-card {
-  background: rgba(255, 255, 255, 0.92);
+  @apply bg-surface border border-outline rounded-xl;
   backdrop-filter: blur(8px);
 }
 
-/* WhatsApp-style chat wallpaper (subtle green dotted texture) */
+/* WhatsApp-style chat wallpaper for dark mode */
 .chat-wallpaper {
-  background-color: #eef3ee;
-  background-image: radial-gradient(rgba(26, 58, 46, 0.05) 1px, transparent 1px);
+  background-color: #04203a;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
   background-size: 18px 18px;
 }
 
 .message-gradient-ai {
-  background: linear-gradient(135deg, #f4f7f5 0%, #e6f4ee 100%);
+  background: linear-gradient(135deg, #06223e 0%, #082a4b 100%);
 }
 
 @keyframes scale-up {
@@ -139,3 +159,4 @@
 .animate-slide-up {
   animation: slide-up 0.25s ease-out;
 }
+

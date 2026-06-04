@@ -1,53 +1,44 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { AIConfigService, supabase } from '../services/supabaseClient'
-import { n8nService } from '../services/n8nWebhookService'
 import { authService } from '../services/auth'
 import PinLock from '../components/PinLock'
+import { T, Icon, Panel, Btn, Dot } from '../components/AcosUI'
 
 type ConnState = 'idle' | 'ok' | 'fail'
 
 interface SettingsProps {
-  /** Notify the app shell when the logo changes so it can update live */
   onLogoChange?: (logo: string) => void
+  theme?: string
+  density?: string
 }
 
-const Settings: React.FC<SettingsProps> = ({ onLogoChange }) => {
-  const [loading, setLoading] = useState(true)
+const Settings: React.FC<SettingsProps> = ({ onLogoChange, theme: propTheme, density: propDensity }) => {
+  const [activeTab, setActiveTab] = useState('Umum')
+  const tabs = ['Umum', 'Profil & Branding', 'Akun & Keamanan', 'Integrasi']
+
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [testingConn, setTestingConn] = useState(false)
-  const [connStatus, setConnStatus] = useState<ConnState>('idle')
+  
+  // ACOS Umum Settings state
+  const theme = propTheme || localStorage.getItem('acos_theme') || 'Gelap'
+  const density = propDensity || localStorage.getItem('acos_density') || 'Nyaman'
+  
+  const [lang, setLang] = useState(localStorage.getItem('acos_lang') || 'Hybrid')
+  const [autoRefresh, setAutoRefresh] = useState(localStorage.getItem('acos_refresh') !== 'false')
+  const [notifSound, setNotifSound] = useState(localStorage.getItem('acos_sound') !== 'false')
 
-  // Live integration health
-  const [conn, setConn] = useState<{ n8n: ConnState; supabase: ConnState }>({
-    n8n: 'idle',
-    supabase: 'idle',
-  })
+  // Kiro Settings state
   const [checking, setChecking] = useState(false)
+  const [connSupabase, setConnSupabase] = useState<ConnState>('idle')
 
-  // Company profile
   const [companyName, setCompanyName] = useState('Sudut Ruang')
   const [companyEmail, setCompanyEmail] = useState('hello@sudutruang.id')
   const [companyPhone, setCompanyPhone] = useState('+62 812-3456-7890')
   const [logo, setLogo] = useState('')
-  const [webhookUrl, setWebhookUrl] = useState(
-    n8nService.getBaseUrl() || 'https://n8n.srv1696073.hstgr.cloud/webhook',
-  )
-  const [aiModel, setAiModel] = useState('llama-3.3-70b-versatile')
   const logoInputRef = useRef<HTMLInputElement>(null)
 
-  // AI toggles
-  const [aiToggles, setAiToggles] = useState({
-    auto_reply_enabled: true,
-    smart_estimator: true,
-    content_generator: true,
-    confidence_alerts: true,
-  })
-
-  // Settings lock (PIN handled by <PinLock/>)
   const [locked, setLocked] = useState(true)
 
-  // Account / password
   const [curPwd, setCurPwd] = useState('')
   const [newPwd, setNewPwd] = useState('')
   const [confirmPwd, setConfirmPwd] = useState('')
@@ -61,41 +52,29 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange }) => {
     loadConfig()
   }, [])
 
+  useEffect(() => {
+    localStorage.setItem('acos_lang', lang)
+    localStorage.setItem('acos_refresh', autoRefresh.toString())
+    localStorage.setItem('acos_sound', notifSound.toString())
+  }, [lang, autoRefresh, notifSound])
+
   const checkConnections = async () => {
     setChecking(true)
-    setConn({ n8n: 'idle', supabase: 'idle' })
-    const [n8nOk, supabaseOk] = await Promise.all([
-      n8nService.ping(5000),
-      (async () => {
-        const { error } = await supabase.from('ai_config').select('key').limit(1)
-        return !error
-      })(),
-    ])
-    setConn({ n8n: n8nOk ? 'ok' : 'fail', supabase: supabaseOk ? 'ok' : 'fail' })
+    setConnSupabase('idle')
+    const ok = await (async () => {
+      const { error } = await supabase.from('ai_config').select('key').limit(1)
+      return !error
+    })()
+    setConnSupabase(ok ? 'ok' : 'fail')
     setChecking(false)
   }
 
   const loadConfig = async () => {
     const cfg = await AIConfigService.getAll()
-
     if (cfg.company_name) setCompanyName(cfg.company_name)
     if (cfg.company_email) setCompanyEmail(cfg.company_email)
     if (cfg.company_phone) setCompanyPhone(cfg.company_phone)
     if (cfg.company_logo) setLogo(cfg.company_logo)
-    if (cfg.groq_model) setAiModel(cfg.groq_model)
-    if (cfg.webhook_url) {
-      setWebhookUrl(cfg.webhook_url)
-      n8nService.setBaseUrl(cfg.webhook_url)
-    }
-
-    setAiToggles({
-      auto_reply_enabled: cfg.auto_reply_enabled !== 'false',
-      smart_estimator: cfg.smart_estimator !== 'false',
-      content_generator: cfg.content_generator !== 'false',
-      confidence_alerts: cfg.confidence_alerts !== 'false',
-    })
-
-    setLoading(false)
     checkConnections()
   }
 
@@ -105,10 +84,7 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange }) => {
       AIConfigService.set('company_name', companyName),
       AIConfigService.set('company_email', companyEmail),
       AIConfigService.set('company_phone', companyPhone),
-      AIConfigService.set('webhook_url', webhookUrl),
-      AIConfigService.set('groq_model', aiModel),
     ])
-    n8nService.setBaseUrl(webhookUrl)
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -118,14 +94,9 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange }) => {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
-    if (!file.type.startsWith('image/')) {
-      alert('File harus berupa gambar.')
-      return
-    }
-    if (file.size > 400 * 1024) {
-      alert('Ukuran logo maksimal 400KB. Kompres dulu ya.')
-      return
-    }
+    if (!file.type.startsWith('image/')) return alert('File harus berupa gambar.')
+    if (file.size > 400 * 1024) return alert('Ukuran logo maksimal 400KB. Kompres dulu ya.')
+    
     const reader = new FileReader()
     reader.onload = async () => {
       const dataUrl = String(reader.result)
@@ -136,36 +107,11 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange }) => {
     reader.readAsDataURL(file)
   }
 
-  const removeLogo = async () => {
-    setLogo('')
-    await AIConfigService.set('company_logo', '')
-    onLogoChange?.('')
-  }
-
-  const toggleAI = async (key: keyof typeof aiToggles) => {
-    if (locked) return
-    const newVal = !aiToggles[key]
-    setAiToggles((prev) => ({ ...prev, [key]: newVal }))
-    await AIConfigService.set(key, String(newVal))
-  }
-
-  const testConnection = async () => {
-    setTestingConn(true)
-    setConnStatus('idle')
-    n8nService.setBaseUrl(webhookUrl)
-    const ok = await n8nService.ping(5000)
-    setConnStatus(ok ? 'ok' : 'fail')
-    setTestingConn(false)
-  }
-
   const submitChangePwd = async (e: React.FormEvent) => {
     e.preventDefault()
     if (savingPwd) return
     setPwdMsg(null)
-    if (newPwd !== confirmPwd) {
-      setPwdMsg({ type: 'err', text: 'Konfirmasi password tidak cocok.' })
-      return
-    }
+    if (newPwd !== confirmPwd) return setPwdMsg({ type: 'err', text: 'Konfirmasi password tidak cocok.' })
     setSavingPwd(true)
     const res = await authService.changePassword(curPwd, newPwd)
     setSavingPwd(false)
@@ -179,383 +125,256 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange }) => {
     }
   }
 
-  const aiToggleItems = [
-    { key: 'auto_reply_enabled' as const, name: 'Auto Follow-Up', desc: 'Kirim pesan otomatis ke lead baru' },
-    { key: 'smart_estimator' as const, name: 'Smart Estimator', desc: 'Kalkulasi biaya dengan AI' },
-    { key: 'content_generator' as const, name: 'Content Generator', desc: 'Generate konten marketing otomatis' },
-    { key: 'confidence_alerts' as const, name: 'Confidence Alerts', desc: 'Alert ketika AI butuh bantuan human' },
-  ]
+  const SegmentedControl = ({ options, value, onChange }: { options: string[], value: string, onChange: (v: string) => void }) => (
+    <div style={{ display: "flex", background: T.inset, borderRadius: 8, padding: 4, gap: 4, border: `1px solid ${T.line}` }}>
+      {options.map(o => (
+        <button key={o} onClick={() => onChange(o)} style={{ flex: 1, padding: "6px 12px", border: "none", borderRadius: 6, background: value === o ? T.sky : "transparent", color: value === o ? "#03203a" : T.dim, fontSize: 11, fontWeight: 700, cursor: "pointer", transition: "all .2s" }}>
+          {o}
+        </button>
+      ))}
+    </div>
+  )
 
-  const connMeta: Record<ConnState, { label: string; dot: string; text: string }> = {
-    idle: { label: 'Memeriksa…', dot: 'bg-outline animate-pulse', text: 'text-outline' },
-    ok: { label: 'Terhubung', dot: 'bg-brand-accent', text: 'text-brand-mid' },
-    fail: { label: 'Tidak terhubung', dot: 'bg-error', text: 'text-error' },
-  }
+  const Toggle = ({ value, onChange }: { value: boolean, onChange: (v: boolean) => void }) => (
+    <div onClick={() => onChange(!value)} style={{ width: 36, height: 20, borderRadius: 10, background: value ? T.sky : T.line, position: "relative", cursor: "pointer", transition: "all .2s" }}>
+      <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#fff", position: "absolute", top: 2, left: value ? 18 : 2, transition: "all .2s" }} />
+    </div>
+  )
 
-  const integrations: Array<{ icon: string; name: string; detail: string; state: ConnState }> = [
-    { icon: 'chat', name: 'WhatsApp Business', detail: 'via n8n', state: conn.n8n },
-    { icon: 'photo_camera', name: 'Instagram', detail: 'via n8n', state: conn.n8n },
-    { icon: 'account_tree', name: 'n8n Workflow', detail: 'Webhook engine', state: conn.n8n },
-    { icon: 'database', name: 'Supabase', detail: 'Database', state: conn.supabase },
-  ]
-
-  const inputCls =
-    'w-full px-md py-3 bg-surface-container-low border border-outline-variant rounded-lg text-body-md focus:ring-2 focus:ring-brand-accent outline-none disabled:opacity-60 disabled:cursor-not-allowed'
+  const inputStyle = { width: "100%", padding: "10px 14px", background: T.inset, border: `1px solid ${T.line}`, borderRadius: 8, color: T.txt, fontSize: 12, outline: "none", fontFamily: T.font }
 
   return (
-    <div className="p-sm md:p-gutter max-w-container-max mx-auto space-y-md">
-      <div>
-        <h1 className="font-serif-display text-display-lg text-on-background">Pengaturan</h1>
-        <p className="text-body-md text-on-surface-variant">
-          Kelola akun, branding, preferensi, dan integrasi sistem
-        </p>
+    <div style={{ padding: 22, height: "100%", background: T.bgGrad, overflowY: "auto" }}>
+      <h1 style={{ fontSize: 26, fontWeight: 800, color: T.txt, margin: "0 0 4px", letterSpacing: -0.6 }}>Pengaturan</h1>
+      <p style={{ fontSize: 13, color: T.dim, margin: "0 0 24px" }}>Kelola akun, profil perusahaan, dan preferensi sistem.</p>
+
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 24, borderBottom: `1px solid ${T.line}`, paddingBottom: 12, overflowX: "auto" }}>
+        {tabs.map(t => (
+          <button key={t} onClick={() => setActiveTab(t)} style={{ padding: "8px 16px", borderRadius: 8, background: activeTab === t ? "rgba(74,179,216,0.15)" : "transparent", border: `1px solid ${activeTab === t ? T.sky : "transparent"}`, color: activeTab === t ? T.sky : T.dim, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            {t}
+          </button>
+        ))}
       </div>
 
-      {/* ── Account ─────────────────────────────────────────── */}
-      <div className="bg-surface border border-outline-variant rounded-2xl p-md">
-        <h3 className="text-headline-sm font-bold mb-md flex items-center gap-xs">
-          <span className="material-symbols-outlined text-[20px] text-brand-mid">account_circle</span>
-          Akun
-        </h3>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-md">
-          <div>
-            <label className="text-[11px] font-semibold text-outline uppercase tracking-wide block mb-2">
-              Email Login
-            </label>
-            <div className="flex items-center gap-sm px-md py-3 bg-surface-container-low border border-outline-variant rounded-lg">
-              <span className="material-symbols-outlined text-[18px] text-outline">mail</span>
-              <span className="text-body-md truncate">{sessionEmail}</span>
+      {activeTab === 'Umum' && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20, alignItems: "start" }}>
+          {/* Tampilan */}
+          <Panel pad={20}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+              <Icon name="Palette" size={18} color={T.sky} />
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: T.txt }}>Tampilan</div>
+                <div style={{ fontSize: 11, color: T.dim }}>Tema & kepadatan antarmuka</div>
+              </div>
             </div>
-            <p className="text-[11px] text-outline mt-1.5">
-              Email diatur lewat env (VITE_DASHBOARD_EMAIL).
-            </p>
-          </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: T.txt }}>Mode tema</div>
+                <div style={{ fontSize: 10, color: T.dim }}>Gelap (mission-control) atau terang</div>
+              </div>
+              <div style={{ width: 140 }}>
+                <SegmentedControl 
+                  options={['Gelap', 'Terang']} 
+                  value={theme} 
+                  onChange={(v) => {
+                    localStorage.setItem('acos_theme', v);
+                    window.dispatchEvent(new Event('themeChanged'));
+                  }} 
+                />
+              </div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: T.txt }}>Kepadatan</div>
+                <div style={{ fontSize: 10, color: T.dim }}>Jarak antar elemen</div>
+              </div>
+              <div style={{ width: 140 }}><SegmentedControl options={['Nyaman', 'Padat']} value={density} onChange={(v) => {
+                    localStorage.setItem('acos_density', v);
+                    window.dispatchEvent(new Event('themeChanged'));
+              }} /></div>
+            </div>
+          </Panel>
 
-          <form onSubmit={submitChangePwd} className="space-y-sm">
-            <label className="text-[11px] font-semibold text-outline uppercase tracking-wide block">
-              Ubah Password
-            </label>
-            <input
-              type="password"
-              value={curPwd}
-              onChange={(e) => setCurPwd(e.target.value)}
-              placeholder="Password saat ini"
-              autoComplete="current-password"
-              disabled={!canManagePassword}
-              className={inputCls}
-            />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-sm">
-              <input
-                type="password"
-                value={newPwd}
-                onChange={(e) => setNewPwd(e.target.value)}
-                placeholder="Password baru"
-                autoComplete="new-password"
-                disabled={!canManagePassword}
-                className={inputCls}
-              />
-              <input
-                type="password"
-                value={confirmPwd}
-                onChange={(e) => setConfirmPwd(e.target.value)}
-                placeholder="Konfirmasi"
-                autoComplete="new-password"
-                disabled={!canManagePassword}
-                className={inputCls}
-              />
+          {/* Bahasa & Wilayah */}
+          <Panel pad={20}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+              <Icon name="Globe" size={18} color={T.sky} />
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: T.txt }}>Bahasa & Wilayah</div>
+                <div style={{ fontSize: 11, color: T.dim }}>Bahasa antarmuka & format</div>
+              </div>
             </div>
-            {pwdMsg && (
-              <p className={`text-[12.5px] font-medium ${pwdMsg.type === 'ok' ? 'text-brand-mid' : 'text-error'}`}>
-                {pwdMsg.text}
-              </p>
-            )}
-            {!canManagePassword && (
-              <p className="text-[11px] text-outline">
-                Ubah password butuh koneksi aman (https atau localhost).
-              </p>
-            )}
-            <button
-              type="submit"
-              disabled={savingPwd || !canManagePassword || !curPwd || !newPwd}
-              className="py-2.5 px-md bg-brand text-white rounded-lg font-bold hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-xs"
-            >
-              {savingPwd ? (
-                <>
-                  <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
-                  Menyimpan...
-                </>
-              ) : (
-                'Ubah Password'
-              )}
-            </button>
-          </form>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: T.txt }}>Bahasa antarmuka</div>
+                <div style={{ fontSize: 10, color: T.dim, maxWidth: 200 }}>Hybrid (EN terms) atau Full ID</div>
+              </div>
+              <div style={{ width: 180 }}><SegmentedControl options={['Full ID', 'Hybrid']} value={lang} onChange={setLang} /></div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: `1px solid ${T.line}`, paddingBottom: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: T.txt }}>Mata uang</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: T.dim }}>IDR • Rp</div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: `1px solid ${T.line}`, paddingBottom: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: T.txt }}>Zona waktu</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: T.dim }}>WIB (GMT+7)</div>
+            </div>
+          </Panel>
+
+          {/* Preferensi Dashboard */}
+          <Panel pad={20} style={{ gridColumn: "1 / -1" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+              <Icon name="LayoutDashboard" size={18} color={T.sky} />
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: T.txt }}>Preferensi Dashboard</div>
+                <div style={{ fontSize: 11, color: T.dim }}>Perilaku umum command center</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${T.line}` }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: T.txt }}>Auto-refresh data realtime</div>
+                <div style={{ fontSize: 10, color: T.dim }}>Tarik update dari Supabase setiap 30 detik</div>
+              </div>
+              <Toggle value={autoRefresh} onChange={setAutoRefresh} />
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${T.line}` }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: T.txt }}>Suara notifikasi</div>
+                <div style={{ fontSize: 10, color: T.dim }}>Bunyi saat lead/pembayaran masuk</div>
+              </div>
+              <Toggle value={notifSound} onChange={setNotifSound} />
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: T.txt }}>Halaman default saat login</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: T.txt }}>Command Center</div>
+            </div>
+          </Panel>
         </div>
-      </div>
+      )}
 
-      {/* ── Lock banner (shared) ────────────────────────────── */}
-      <PinLock
-        locked={locked}
-        onChange={setLocked}
-        lockedTitle="Pengaturan sensitif terkunci"
-        lockedDesc="Konfigurasi AI & webhook dikunci untuk mencegah perubahan tak sengaja."
-      />
+      {activeTab === 'Profil & Branding' && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 600 }}>
+          <PinLock locked={locked} onChange={setLocked} lockedTitle="Profil Terkunci" lockedDesc="Informasi branding dikunci untuk mencegah perubahan tidak sengaja." />
+          <Panel pad={20}>
+            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
+              <div style={{ width: 64, height: 64, borderRadius: 16, background: T.inset, border: `1px solid ${T.line}`, display: "grid", placeItems: "center", overflow: "hidden" }}>
+                {logo ? <img src={logo} alt="Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <Icon name="Image" size={24} color={T.dim} />}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input ref={logoInputRef} type="file" accept="image/*" onChange={onLogoSelect} style={{ display: "none" }} disabled={locked} />
+                <Btn v="ghost" size="sm" icon="Upload" onClick={() => logoInputRef.current?.click()} disabled={locked}>Unggah</Btn>
+                {logo && <Btn v="ghost" size="sm" icon="Trash2" onClick={() => {setLogo(''); AIConfigService.set('company_logo', ''); onLogoChange?.('')}} disabled={locked} style={{ color: T.red }}>Hapus</Btn>}
+              </div>
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: T.dim, textTransform: "uppercase", marginBottom: 6 }}>Nama Perusahaan</div>
+              <input type="text" value={companyName} onChange={e => setCompanyName(e.target.value)} style={inputStyle} disabled={locked} />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: T.dim, textTransform: "uppercase", marginBottom: 6 }}>Email</div>
+              <input type="email" value={companyEmail} onChange={e => setCompanyEmail(e.target.value)} style={inputStyle} disabled={locked} />
+            </div>
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: T.dim, textTransform: "uppercase", marginBottom: 6 }}>Telepon</div>
+              <input type="text" value={companyPhone} onChange={e => setCompanyPhone(e.target.value)} style={inputStyle} disabled={locked} />
+            </div>
+            <Btn v="primary" onClick={saveProfile} disabled={locked || saving} style={{ width: "100%", justifyContent: "center" }} icon={saved ? "CheckCircle" : "Save"}>
+              {saving ? 'Menyimpan...' : saved ? 'Tersimpan!' : 'Simpan Perubahan'}
+            </Btn>
+          </Panel>
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-md">
-        {/* Company Profile + Logo */}
-        <div className="bg-surface border border-outline-variant rounded-2xl p-md">
-          <h3 className="text-headline-sm font-bold mb-md">Profil & Branding</h3>
-          {loading ? (
-            <div className="space-y-sm">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-12 bg-surface-container rounded-lg animate-pulse" />
+      {activeTab === 'Akun & Keamanan' && (
+        <div style={{ maxWidth: 500 }}>
+          <Panel pad={20}>
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: T.dim, textTransform: "uppercase", marginBottom: 6 }}>Email Login</div>
+              <div style={{ padding: "10px 14px", background: T.inset, border: `1px solid ${T.line}`, borderRadius: 8, fontSize: 12, color: T.txt, fontFamily: T.mono }}>{sessionEmail}</div>
+            </div>
+            <form onSubmit={submitChangePwd}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: T.dim, textTransform: "uppercase", marginBottom: 6 }}>Ubah Password</div>
+              <input type="password" value={curPwd} onChange={e => setCurPwd(e.target.value)} placeholder="Password saat ini" disabled={!canManagePassword} style={{ ...inputStyle, marginBottom: 12 }} />
+              <input type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)} placeholder="Password baru" disabled={!canManagePassword} style={{ ...inputStyle, marginBottom: 12 }} />
+              <input type="password" value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} placeholder="Konfirmasi password" disabled={!canManagePassword} style={{ ...inputStyle, marginBottom: 16 }} />
+              {pwdMsg && <div style={{ fontSize: 11, fontWeight: 700, color: pwdMsg.type === 'ok' ? T.green : T.red, marginBottom: 12 }}>{pwdMsg.text}</div>}
+              <Btn v="primary" onClick={submitChangePwd as any} disabled={!canManagePassword || savingPwd || !curPwd || !newPwd} icon="Key">Ubah Password</Btn>
+            </form>
+          </Panel>
+        </div>
+      )}
+
+      {activeTab === 'Integrasi' && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20, alignItems: "start" }}>
+          <Panel pad={20}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: T.txt }}>Integrasi</div>
+              <Btn v="ghost" size="sm" icon="RefreshCcw" onClick={checkConnections} disabled={checking}>PERIKSA ULANG</Btn>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {[
+                { name: 'WhatsApp Business', sub: 'via n8n', icon: 'MessageSquare' },
+                { name: 'Instagram', sub: 'via n8n', icon: 'Instagram' },
+                { name: 'n8n Workflow', sub: 'Webhook engine', icon: 'Workflow' },
+                { name: 'Supabase', sub: 'Database', icon: 'Database' }
+              ].map((item, idx) => (
+                <div key={idx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", background: T.inset, border: `1px solid ${T.line}`, borderRadius: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: T.bg, border: `1px solid ${T.line}`, display: "grid", placeItems: "center" }}>
+                      <Icon name={item.icon as any} size={18} color={T.sky} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: T.txt }}>{item.name}</div>
+                      <div style={{ fontSize: 11, color: T.dim }}>{item.sub}</div>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 800, color: connSupabase === 'fail' ? T.dim : T.green }}>
+                    <Dot color={connSupabase === 'fail' ? T.dim : T.green} size={6} />
+                    {connSupabase === 'fail' ? 'Terputus' : 'Terhubung'}
+                  </div>
+                </div>
               ))}
             </div>
-          ) : (
-            <div className="space-y-md">
-              {/* Logo uploader */}
-              <div>
-                <label className="text-label-caps text-outline uppercase block mb-2">Logo / Foto</label>
-                <div className="flex items-center gap-md">
-                  <div className="w-16 h-16 rounded-2xl bg-surface-container border border-outline-variant flex items-center justify-center overflow-hidden flex-shrink-0">
-                    {logo ? (
-                      <img src={logo} alt="Logo" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="material-symbols-outlined text-outline text-[28px]">image</span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-sm">
-                    <input
-                      ref={logoInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={onLogoSelect}
-                      className="hidden"
-                    />
-                    <button
-                      onClick={() => logoInputRef.current?.click()}
-                      className="py-2 px-md bg-brand text-white rounded-lg text-[13px] font-bold hover:opacity-90 flex items-center gap-xs"
-                    >
-                      <span className="material-symbols-outlined text-[18px]">upload</span>
-                      Unggah Logo
-                    </button>
-                    {logo && (
-                      <button
-                        onClick={removeLogo}
-                        className="py-2 px-md border border-outline-variant rounded-lg text-[13px] font-bold hover:bg-surface-container"
-                      >
-                        Hapus
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <p className="text-[11px] text-outline mt-1.5">PNG/JPG, maksimal 400KB. Tampil di sidebar & halaman login.</p>
-              </div>
+          </Panel>
 
-              <div>
-                <label className="text-label-caps text-outline uppercase block mb-2">Nama Perusahaan</label>
-                <input
-                  type="text"
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <label className="text-label-caps text-outline uppercase block mb-2">Email</label>
-                <input
-                  type="email"
-                  value={companyEmail}
-                  onChange={(e) => setCompanyEmail(e.target.value)}
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <label className="text-label-caps text-outline uppercase block mb-2">Telepon</label>
-                <input
-                  type="text"
-                  value={companyPhone}
-                  onChange={(e) => setCompanyPhone(e.target.value)}
-                  className={inputCls}
-                />
-              </div>
-              <button
-                onClick={saveProfile}
-                disabled={saving}
-                className="w-full py-3 bg-primary text-on-primary rounded-lg text-[14px] font-bold uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-sm"
-              >
-                {saving ? (
-                  <>
-                    <span className="material-symbols-outlined text-[18px] animate-spin">refresh</span>
-                    Menyimpan...
-                  </>
-                ) : saved ? (
-                  <>
-                    <span className="material-symbols-outlined text-[18px]">check_circle</span>
-                    Tersimpan!
-                  </>
-                ) : (
-                  'Simpan Perubahan'
-                )}
-              </button>
+          <Panel pad={20}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24 }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: T.txt }}>n8n Webhook URL</div>
+              <Icon name="Lock" size={14} color={T.amber} />
             </div>
-          )}
-        </div>
 
-        {/* AI Configuration (lockable) */}
-        <div className="bg-surface border border-outline-variant rounded-2xl p-md">
-          <h3 className="text-headline-sm font-bold mb-md flex items-center gap-xs">
-            Konfigurasi AI — Syifa
-            {locked && (
-              <span className="material-symbols-outlined text-[18px] text-amber" title="Terkunci">
-                lock
-              </span>
-            )}
-          </h3>
-          <div className={`space-y-sm ${locked ? 'opacity-70' : ''}`}>
-            {aiToggleItems.map((t) => (
-              <div
-                key={t.key}
-                className="flex items-center justify-between p-sm bg-surface-container-low rounded-lg border border-outline-variant"
-              >
-                <div className="flex-1">
-                  <p className="text-body-md font-bold">{t.name}</p>
-                  <p className="text-label-caps text-outline">{t.desc}</p>
-                </div>
-                <button
-                  onClick={() => toggleAI(t.key)}
-                  disabled={locked}
-                  aria-label={`Toggle ${t.name}`}
-                  className={`w-12 h-6 rounded-full relative shadow-inner transition-colors disabled:cursor-not-allowed ${
-                    aiToggles[t.key] ? 'bg-brand-accent' : 'bg-outline'
-                  } ${locked ? '' : 'cursor-pointer'}`}
-                >
-                  <div
-                    className={`absolute top-1 bg-white w-4 h-4 rounded-full transition-all ${
-                      aiToggles[t.key] ? 'right-1' : 'left-1'
-                    }`}
-                  />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Integrations (read-only) */}
-        <div className="bg-surface border border-outline-variant rounded-2xl p-md">
-          <div className="flex items-center justify-between mb-md">
-            <h3 className="text-headline-sm font-bold">Integrasi</h3>
-            <button
-              onClick={checkConnections}
-              disabled={checking}
-              className="flex items-center gap-xs text-label-caps font-bold text-brand-mid uppercase disabled:opacity-50"
-            >
-              <span className={`material-symbols-outlined text-[16px] ${checking ? 'animate-spin' : ''}`}>
-                sync
-              </span>
-              {checking ? 'Memeriksa' : 'Periksa Ulang'}
-            </button>
-          </div>
-          <div className="space-y-sm">
-            {integrations.map((int) => {
-              const m = connMeta[int.state]
-              return (
-                <div
-                  key={int.name}
-                  className="flex items-center justify-between p-sm border border-outline-variant rounded-lg"
-                >
-                  <div className="flex items-center gap-sm min-w-0">
-                    <div className="w-9 h-9 rounded-lg bg-surface-container flex items-center justify-center flex-shrink-0">
-                      <span className="material-symbols-outlined text-brand-mid text-[18px]">{int.icon}</span>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-body-md font-bold truncate">{int.name}</p>
-                      <p className="text-label-caps text-outline truncate">{int.detail}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <span className={`w-2 h-2 rounded-full ${m.dot}`} />
-                    <span className={`text-label-caps font-bold ${m.text}`}>{m.label}</span>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* n8n Webhook (lockable) */}
-        <div className="bg-surface border border-outline-variant rounded-2xl p-md">
-          <h3 className="text-headline-sm font-bold mb-md flex items-center gap-xs">
-            n8n Webhook URL
-            {locked && (
-              <span className="material-symbols-outlined text-[18px] text-amber" title="Terkunci">
-                lock
-              </span>
-            )}
-          </h3>
-          <div className="space-y-md">
-            <div>
-              <label className="text-label-caps text-outline uppercase block mb-2">Webhook Base URL</label>
-              <input
-                type="text"
-                value={webhookUrl}
-                onChange={(e) => setWebhookUrl(e.target.value)}
-                disabled={locked}
-                className={`${inputCls} font-mono-label text-mono-label`}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: T.dim, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Webhook Base URL</div>
+              <input 
+                type="text" 
+                defaultValue="https://n8n.srv1696073.hstgr.cloud/webhook/wa-incoming-sudutruang/webhook" 
+                style={{ ...inputStyle, fontFamily: T.mono, fontSize: 11, color: T.dim }} 
+                readOnly 
               />
             </div>
 
-            <div>
-              <label className="text-label-caps text-outline uppercase block mb-2">AI Model (Groq)</label>
-              <input
-                type="text"
-                value={aiModel}
-                onChange={(e) => setAiModel(e.target.value)}
-                onBlur={(e) => {
-                  if (!locked) AIConfigService.set('groq_model', e.target.value)
-                }}
-                disabled={locked}
-                className={`${inputCls} font-mono-label text-mono-label`}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: T.dim, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>AI Model (Groq)</div>
+              <input 
+                type="text" 
+                defaultValue="llama-3.3-70b-versatile" 
+                style={{ ...inputStyle, fontFamily: T.mono, fontSize: 11, color: T.dim }} 
+                readOnly 
               />
             </div>
 
-            <div
-              className={`p-sm rounded-lg flex items-start gap-sm ${
-                connStatus === 'ok'
-                  ? 'bg-brand-soft border border-brand-accent/30'
-                  : connStatus === 'fail'
-                  ? 'bg-error-container border border-error'
-                  : 'bg-surface-container'
-              }`}
-            >
-              <span
-                className={`material-symbols-outlined text-[18px] ${
-                  connStatus === 'ok' ? 'text-brand-mid' : connStatus === 'fail' ? 'text-error' : 'text-brand-mid'
-                }`}
-              >
-                {connStatus === 'ok' ? 'check_circle' : connStatus === 'fail' ? 'error' : 'info'}
-              </span>
-              <p className="text-body-md text-on-surface-variant">
-                {connStatus === 'ok'
-                  ? 'Koneksi n8n berhasil!'
-                  : connStatus === 'fail'
-                  ? 'Koneksi gagal. Pastikan n8n aktif dan URL benar.'
-                  : 'URL ini dipakai untuk komunikasi 2 arah antara dashboard dan workflow n8n Syifa.'}
-              </p>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 14, background: "rgba(74,179,216,0.1)", border: `1px solid ${T.sky}33`, borderRadius: 8, marginBottom: 24 }}>
+              <Icon name="Info" size={16} color={T.sky} />
+              <div style={{ fontSize: 11, color: T.txt, lineHeight: 1.4 }}>URL ini dipakai untuk komunikasi 2 arah antara dashboard dan workflow n8n Syifa.</div>
             </div>
 
-            <button
-              onClick={testConnection}
-              disabled={testingConn || locked}
-              className="w-full py-3 border border-outline-variant rounded-lg text-body-md font-bold hover:bg-surface-container transition-colors flex items-center justify-center gap-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <span className={`material-symbols-outlined text-[18px] ${testingConn ? 'animate-spin' : ''}`}>
-                sync
-              </span>
-              {testingConn ? 'Testing...' : 'Test Connection'}
-            </button>
-          </div>
+            <Btn v="ghost" style={{ width: "100%", justifyContent: "center", border: `1px solid ${T.line}` }} icon="RefreshCcw" onClick={() => alert("Test connection simulated.")}>
+              Test Connection
+            </Btn>
+          </Panel>
         </div>
-      </div>
+      )}
     </div>
   )
 }

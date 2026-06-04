@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef, Component, ReactNode } from 'react'
+import { T, applyTheme } from './components/AcosUI'
 import Sidebar from './components/Sidebar'
 import TopBar from './components/TopBar'
 import NotificationToasts from './components/NotificationToasts'
 import Dashboard from './pages/Dashboard'
 import ChatMonitoring from './pages/ChatMonitoring'
 import Pipeline from './pages/Pipeline'
-import Estimator from './pages/Estimator'
-import AIStudio from './pages/AIStudio'
+import Documents from './pages/Documents'
+import Analytics from './pages/Analytics'
+import AutomationLog from './pages/AutomationLog'
 import Settings from './pages/Settings'
 import LoginPage from './pages/LoginPage'
 import { supabase, AIConfigService } from './services/supabaseClient'
@@ -14,20 +16,22 @@ import { authService } from './services/auth'
 import { playNotificationSound, primeAudio, showBrowserNotification } from './services/notify'
 import { AppNotification, ToastItem } from './types/notification'
 
-type PageType =
+export type PageType =
   | 'dashboard'
   | 'chat-monitoring'
   | 'pipeline'
-  | 'estimator'
-  | 'ai-studio'
+  | 'documents'
+  | 'analytics'
+  | 'automation'
   | 'settings'
 
 const pageTitles: Record<PageType, string> = {
-  dashboard: 'Dashboard',
+  dashboard: 'Command Center',
   'chat-monitoring': 'Active Chats',
   pipeline: 'Client CRM',
-  estimator: 'AI Estimator',
-  'ai-studio': 'AI Studio',
+  documents: 'Dokumen & SPK',
+  analytics: 'Analitik & KPI',
+  automation: 'Pusat Automasi',
   settings: 'Pengaturan',
 }
 
@@ -78,6 +82,13 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [chatBadge, setChatBadge] = useState(0)
   const [logo, setLogo] = useState<string>('')
+  
+  // ACOS Theme Logic — single source of truth in localStorage
+  const [theme, setThemeState] = useState(() => localStorage.getItem('acos_theme') || 'Gelap')
+  const [density, setDensityState] = useState(() => localStorage.getItem('acos_density') || 'Nyaman')
+  
+  // Apply theme IMMEDIATELY on first render (synchronous, before paint)
+  applyTheme(localStorage.getItem('acos_theme') || 'Gelap', localStorage.getItem('acos_density') || 'Nyaman');
 
   // Search + conversation targeting for ChatMonitoring
   const [chatSearch, setChatSearch] = useState('')
@@ -103,9 +114,23 @@ function App() {
     const unlock = () => primeAudio()
     window.addEventListener('pointerdown', unlock, { once: true })
     window.addEventListener('keydown', unlock, { once: true })
+    
+    const themeListener = () => {
+      // Read DIRECTLY from localStorage — always accurate, no stale closure
+      const newTheme = localStorage.getItem('acos_theme') || 'Gelap'
+      const newDensity = localStorage.getItem('acos_density') || 'Nyaman'
+      // Apply IMMEDIATELY (sync) before React re-render
+      applyTheme(newTheme, newDensity)
+      // Then update state so components re-render with new T values
+      setThemeState(newTheme)
+      setDensityState(newDensity)
+    };
+    window.addEventListener('themeChanged', themeListener);
+    
     return () => {
       window.removeEventListener('pointerdown', unlock)
       window.removeEventListener('keydown', unlock)
+      window.removeEventListener('themeChanged', themeListener)
     }
   }, [authed])
 
@@ -225,12 +250,14 @@ function App() {
         )
       case 'pipeline':
         return <Pipeline />
-      case 'estimator':
-        return <Estimator />
-      case 'ai-studio':
-        return <AIStudio />
+      case 'documents':
+        return <Documents />
+      case 'analytics':
+        return <Analytics />
+      case 'automation':
+        return <AutomationLog />
       case 'settings':
-        return <Settings onLogoChange={setLogo} />
+        return <Settings onLogoChange={setLogo} theme={theme} density={density} />
       default:
         return <Dashboard onNavigate={setCurrentPage} />
     }
@@ -239,7 +266,7 @@ function App() {
   const isFullscreenPage = currentPage === 'chat-monitoring'
 
   return (
-    <div className="h-full bg-background text-on-background overflow-hidden">
+    <div className="h-full overflow-hidden" style={{ background: T.bg, color: T.txt }}>
       <Sidebar
         currentPage={currentPage}
         onPageChange={setCurrentPage}
