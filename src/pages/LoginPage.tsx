@@ -134,6 +134,7 @@ const LoginPage: React.FC<Props> = ({ onSuccess }) => {
                 placeholder="email@sudutruang.com"
                 autoComplete="username"
                 className="w-full bg-white/[0.06] border border-white/10 rounded-xl px-4 py-3 text-[14px] text-white placeholder:text-white/20 outline-none focus:border-brand-accent/50 transition-colors"
+                style={{ color: '#ffffff', background: 'rgba(255,255,255,0.06)' }}
               />
             </div>
 
@@ -149,6 +150,7 @@ const LoginPage: React.FC<Props> = ({ onSuccess }) => {
                   placeholder="••••••••"
                   autoComplete="current-password"
                   className="w-full bg-white/[0.06] border border-white/10 rounded-xl px-4 py-3 pr-11 text-[14px] text-white placeholder:text-white/20 outline-none focus:border-brand-accent/50 transition-colors"
+                  style={{ color: '#ffffff', background: 'rgba(255,255,255,0.06)' }}
                 />
                 <button
                   type="button"
