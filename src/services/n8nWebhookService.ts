@@ -72,6 +72,9 @@ class N8NWebhookService {
     source: 'whatsapp' | 'instagram'
     senderRole: 'ai' | 'human'
     humanOperator?: string
+    mediaUrl?: string
+    mediaType?: string
+    fileName?: string
   }) {
     try {
       const response = await fetch(this.url(ENDPOINTS.sendMessage), {
@@ -84,11 +87,17 @@ class N8NWebhookService {
           message: payload.message,
           sender: payload.senderRole,
           operator: payload.humanOperator,
+          mediaUrl: payload.mediaUrl,
+          mediaType: payload.mediaType,
+          fileName: payload.fileName,
           timestamp: new Date().toISOString(),
           metadata: {
             sessionId: this.getSessionId(),
             // dashboardSent flag → biar n8n WF0 bisa skip duplicate Supabase insert
             dashboardSent: true,
+            mediaUrl: payload.mediaUrl,
+            mediaType: payload.mediaType,
+            fileName: payload.fileName,
           },
         }),
       })

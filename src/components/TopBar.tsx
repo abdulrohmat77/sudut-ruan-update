@@ -116,17 +116,11 @@ const TopBar: React.FC<TopBarProps> = ({
             />
             {/* Panel — fixed on mobile, absolute on desktop */}
             <div
-              className="fixed md:absolute z-50 md:right-0 md:top-auto md:mt-2 animate-slide-up overflow-hidden rounded-2xl"
+              className="fixed top-[56px] left-2 right-2 z-50 md:absolute md:top-full md:mt-2 md:left-auto md:right-0 md:w-[380px] max-w-[420px] mx-auto animate-slide-up overflow-hidden rounded-2xl"
               style={{
                 background: T.panel,
                 border: `1px solid ${T.lineHi}`,
                 boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
-                // Mobile: full-width sheet from top
-                top: 'var(--topbar-h, 56px)',
-                left: '8px',
-                right: '8px',
-                maxWidth: '420px',
-                // Desktop override via md: classes can't work here, use JS width
               }}
             >
               <div className="flex items-center justify-between px-md py-sm border-b" style={{ borderColor: T.line }}>

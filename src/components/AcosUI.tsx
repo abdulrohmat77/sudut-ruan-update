@@ -109,10 +109,10 @@ export const statusColor: Record<string, string> = {
 };
 
 // ── ICON (Lucide UMD) ────────────────────────────────────
-export function Icon({ name, size = 18, color = "currentColor", style = {} }: any) {
+export function Icon({ name, size = 18, color = "currentColor", style = {}, ...props }: any) {
   const IconComponent = (LucideIcons as any)[name || 'HelpCircle'];
-  if (!IconComponent) return <span style={{ display: "inline-block", width: size, height: size, ...style }} />;
-  return <IconComponent size={size} color={color} style={{ flexShrink: 0, ...style }} />;
+  if (!IconComponent) return <span style={{ display: "inline-block", width: size, height: size, ...style }} {...props} />;
+  return <IconComponent size={size} color={color} style={{ flexShrink: 0, ...style }} {...props} />;
 }
 
 // ── BRAND MARK ───────────────────────────────────────────

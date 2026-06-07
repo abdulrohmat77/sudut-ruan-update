@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { DBConversation, DBMessage, ConversationService, QuickReplyService, DBQuickReply } from '../services/supabaseClient'
+import { DBConversation, DBMessage, ConversationService, QuickReplyService, DBQuickReply, supabase } from '../services/supabaseClient'
 import { T, Icon, Avatar, Tag, ProgBar, Btn, Dot, Panel, statusColor } from '../components/AcosUI'
 import { n8nService } from '../services/n8nWebhookService'
 
@@ -22,9 +22,13 @@ const ChatMonitoring: React.FC<ChatMonitoringProps> = ({
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [messages, setMessages] = useState<DBMessage[]>([])
   const [messageInput, setMessageInput] = useState('')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [filterSource, setFilterSource] = useState<'all' | 'whatsapp' | 'instagram'>('all')
   const [search, setSearch] = useState('')
   const [quickReplies, setQuickReplies] = useState<DBQuickReply[]>([])
+  const [showAttachMenu, setShowAttachMenu] = useState(false)
   const [showQuickReplies, setShowQuickReplies] = useState(false)
   const [loading, setLoading] = useState(true)
   const [togglingMode, setTogglingMode] = useState(false)
@@ -141,8 +145,51 @@ const ChatMonitoring: React.FC<ChatMonitoringProps> = ({
   }
 
   const handleSendMessage = async () => {
-    if (!messageInput.trim() || !selectedConv) return
-    const text = messageInput
+    if ((!messageInput.trim() && !selectedFile) || !selectedConv || uploading) return
+    setUploading(true)
+
+    let mediaUrl = ''
+    let mediaType = ''
+    let fileName = ''
+    if (selectedFile) {
+      if (selectedFile.type.startsWith('image/')) mediaType = 'image'
+      else if (selectedFile.type.startsWith('audio/')) mediaType = 'audio'
+      else mediaType = 'document'
+      
+      fileName = selectedFile.name
+
+      try {
+        const formData = new FormData()
+        formData.append('file', selectedFile)
+        formData.append('upload_preset', 'dashboard_uploads')
+        
+        const uploadType = mediaType === 'document' ? 'raw' : 'auto'
+        const res = await fetch(`https://api.cloudinary.com/v1_1/dtfmjwofq/${uploadType}/upload`, {
+          method: 'POST',
+          body: formData
+        })
+        const data = await res.json()
+        if (data.secure_url) {
+          if (data.resource_type === 'image' && data.format !== 'pdf') {
+            const parts = data.secure_url.split('/upload/')
+            mediaUrl = parts[0] + '/upload/f_auto,q_auto/' + parts[1]
+          } else {
+            mediaUrl = data.secure_url
+          }
+        } else {
+          console.error('Cloudinary Upload error:', data)
+        }
+      } catch (err) {
+        console.error('Upload exception:', err)
+      }
+    }
+
+    const text = messageInput.trim() || ''
+    if (!text && !mediaUrl) {
+      setUploading(false)
+      return
+    }
+
     const msg: Omit<DBMessage, 'id' | 'created_at'> = {
       conversation_id: selectedConv.id,
       content: text,
@@ -150,9 +197,10 @@ const ChatMonitoring: React.FC<ChatMonitoringProps> = ({
       source: selectedConv.source,
       ai_confidence: null,
       needs_human_review: false,
-      metadata: { dashboardSent: true },
+      metadata: { dashboardSent: true, mediaUrl, mediaType, fileName },
     }
     setMessageInput('')
+    setSelectedFile(null)
     
     await ConversationService.insertMessage(msg)
     await ConversationService.upsertConversation({
@@ -170,9 +218,13 @@ const ChatMonitoring: React.FC<ChatMonitoringProps> = ({
       message: text,
       source: selectedConv.source,
       senderRole: 'human',
+      mediaUrl: mediaUrl || undefined,
+      mediaType: mediaUrl ? mediaType : undefined,
+      fileName: mediaUrl ? fileName : undefined,
     })
 
     loadMessages(selectedConv.id)
+    setUploading(false)
   }
 
   const handleToggleMode = async () => {
@@ -338,6 +390,23 @@ const ChatMonitoring: React.FC<ChatMonitoringProps> = ({
                           </div>
                         )}
                         <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{msg.content}</div>
+                        {(() => {
+                          const mediaUrl = msg.metadata?.mediaUrl;
+                          if (typeof mediaUrl === 'string' && mediaUrl) {
+                            return (
+                              <div style={{ marginTop: 8 }}>
+                                {mediaUrl.match(/\.(jpeg|jpg|gif|png|webp)/i) ? (
+                                  <img src={mediaUrl} alt="attachment" style={{ maxWidth: '100%', borderRadius: 8, maxHeight: 200, objectFit: 'contain' }} />
+                                ) : (
+                                  <a href={mediaUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: msg.role === 'ai' ? T.sky : T.sky, textDecoration: 'underline', fontSize: 11, fontWeight: 600 }}>
+                                    <Icon name="Paperclip" size={12} /> Buka Lampiran
+                                  </a>
+                                )}
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
                       <div style={{ fontSize: 9.5, color: T.dim, marginTop: 4, alignSelf: isClient ? "flex-start" : "flex-end", display: "flex", alignItems: "center", gap: 4 }}>
                         {formatTime(msg.created_at)}
@@ -370,10 +439,56 @@ const ChatMonitoring: React.FC<ChatMonitoringProps> = ({
                       ))}
                     </div>
                   )}
+                  {selectedFile && (
+                    <div style={{ padding: "8px 12px", background: T.inset, border: `1px solid ${T.line}`, borderRadius: 8, marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11, color: T.txt }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <Icon name="FileText" size={14} color={T.sky} />
+                        <span style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedFile.name}</span>
+                      </div>
+                      <Icon name="X" size={14} color={T.dim} style={{ cursor: "pointer" }} onClick={() => setSelectedFile(null)} />
+                    </div>
+                  )}
                   <div style={{ display: "flex", alignItems: "flex-end", gap: 8, background: T.inset, border: `1px solid ${T.line}`, borderRadius: 12, padding: "6px" }}>
                     <button onClick={() => setShowQuickReplies(!showQuickReplies)} style={{ background: "transparent", border: "none", padding: 6, cursor: "pointer", color: T.dim }}><Icon name="Zap" size={18} color={T.dim} /></button>
-                    <textarea rows={1} value={messageInput} onChange={(e) => setMessageInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} placeholder="Ketik pesan..." style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: T.txt, fontSize: 12.5, fontFamily: T.font, resize: "none", maxHeight: 120, padding: "8px 0" }} />
-                    <button onClick={handleSendMessage} disabled={!messageInput.trim()} style={{ background: messageInput.trim() ? T.sky : T.line, color: messageInput.trim() ? "#03203a" : T.dim, border: "none", width: 34, height: 34, borderRadius: 9, cursor: messageInput.trim() ? "pointer" : "not-allowed", display: "grid", placeItems: "center" }}><Icon name="Send" size={14} color={messageInput.trim() ? "#03203a" : T.dim} /></button>
+                    
+                    <input type="file" ref={fileInputRef} hidden onChange={(e) => { setSelectedFile(e.target.files?.[0] || null); setShowAttachMenu(false); }} />
+                    <div style={{ position: "relative" }}>
+                      <button onClick={() => setShowAttachMenu(!showAttachMenu)} style={{ background: "transparent", border: "none", padding: 6, cursor: "pointer", color: selectedFile || showAttachMenu ? T.sky : T.dim }}>
+                        <Icon name="Paperclip" size={18} color={selectedFile || showAttachMenu ? T.sky : T.dim} />
+                      </button>
+                      
+                      {showAttachMenu && (
+                        <div style={{ position: "absolute", bottom: "100%", left: 0, marginBottom: 8, background: T.panel, border: `1px solid ${T.line}`, borderRadius: 12, padding: 8, display: "flex", flexDirection: "column", gap: 4, minWidth: 160, boxShadow: "0 10px 25px rgba(0,0,0,0.2)", zIndex: 50 }}>
+                          {[
+                            { id: 'image/*', icon: 'Image' as const, label: 'Gambar', color: T.sky },
+                            { id: '*', icon: 'FileText' as const, label: 'Dokumen', color: "#3b82f6" },
+                            { id: 'audio/*', icon: 'Headphones' as const, label: 'Audio', color: T.amber }
+                          ].map(item => (
+                            <button
+                              key={item.id}
+                              onClick={() => {
+                                if (fileInputRef.current) {
+                                  fileInputRef.current.accept = item.id;
+                                  fileInputRef.current.click();
+                                }
+                              }}
+                              style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "transparent", border: "none", cursor: "pointer", borderRadius: 8, textAlign: "left" }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = T.inset}
+                              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                            >
+                              <Icon name={item.icon} size={16} color={item.color} />
+                              <span style={{ fontSize: 12, fontWeight: 600, color: T.txt }}>{item.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <textarea rows={1} value={messageInput} onChange={(e) => setMessageInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} placeholder="Ketik pesan..." style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: T.txt, fontSize: 12.5, fontFamily: T.font, resize: "none", maxHeight: 120, padding: "8px 0" }} disabled={uploading} />
+                    
+                    <button onClick={handleSendMessage} disabled={(!messageInput.trim() && !selectedFile) || uploading} style={{ background: (messageInput.trim() || selectedFile) ? T.sky : T.line, color: (messageInput.trim() || selectedFile) ? "#03203a" : T.dim, border: "none", width: 34, height: 34, borderRadius: 9, cursor: (messageInput.trim() || selectedFile) && !uploading ? "pointer" : "not-allowed", display: "grid", placeItems: "center" }}>
+                      {uploading ? <Dot color="#03203a" pulse size={6} /> : <Icon name="Send" size={14} color={(messageInput.trim() || selectedFile) ? "#03203a" : T.dim} />}
+                    </button>
                   </div>
                 </>
               )}
