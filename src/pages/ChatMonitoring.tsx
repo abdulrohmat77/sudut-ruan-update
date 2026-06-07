@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { DBConversation, DBMessage, ConversationService, QuickReplyService, DBQuickReply, supabase } from '../services/supabaseClient'
+import { DBConversation, DBMessage, ConversationService, QuickReplyService, DBQuickReply } from '../services/supabaseClient'
 import { T, Icon, Avatar, Tag, ProgBar, Btn, Dot, Panel, statusColor } from '../components/AcosUI'
 import { n8nService } from '../services/n8nWebhookService'
 
