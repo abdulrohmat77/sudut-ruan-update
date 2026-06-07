@@ -1,22 +1,50 @@
 import React, { useEffect, useState } from 'react'
 import { DocumentService, DBDocument } from '../services/supabaseClient'
 import { T } from '../components/AcosUI'
-import { FileText, FileSignature, Receipt, Plus, Search, X, Loader2, Download } from 'lucide-react'
+import { FileText, FileSignature, Receipt, Plus, Search, X, Loader2, Download, Trash2 } from 'lucide-react'
 
-const Documents: React.FC = () => {
+import { PageType } from '../App'
+
+interface Props {
+  onNavigate?: (page: PageType) => void
+}
+
+const Documents = ({ onNavigate }: Props) => {
   const [documents, setDocuments] = useState<DBDocument[]>([])
   const [loading, setLoading] = useState(true)
   const [filterType, setFilterType] = useState<'all' | 'proposal' | 'spk' | 'invoice'>('all')
   const [search, setSearch] = useState('')
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [alertModal, setAlertModal] = useState<{ title: string, message: string, type: 'error'|'info' } | null>(null)
 
-  useEffect(() => {
-    loadDocuments()
-  }, [])
-
-  const loadDocuments = async () => {
+  const loadData = async () => {
+    setLoading(true)
     const data = await DocumentService.getAll()
     setDocuments(data)
     setLoading(false)
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const handleDeleteClick = (id: string) => {
+    setDeleteConfirmId(id)
+  }
+
+  const executeDelete = async () => {
+    if (!deleteConfirmId) return
+    
+    setLoading(true)
+    const { error } = await DocumentService.delete(deleteConfirmId)
+    if (error) {
+      setAlertModal({ title: 'Gagal', message: 'Gagal menghapus dokumen', type: 'error' })
+      setLoading(false)
+    } else {
+      await loadData()
+      setDeleteConfirmId(null)
+    }
   }
 
   const filteredDocs = documents
@@ -54,7 +82,7 @@ const Documents: React.FC = () => {
           <h1 style={{ fontSize: 24, fontWeight: 800, color: T.txt, margin: 0, letterSpacing: -0.5 }}>Dokumen & SPK</h1>
           <p style={{ fontSize: 13, color: T.dim, margin: '4px 0 0' }}>Manajemen Proposal, Surat Perintah Kerja (SPK), dan Invoice.</p>
         </div>
-        <button style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 16px', background: T.sky, color: '#03203a', borderRadius: 10, border: 'none', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+        <button onClick={() => setShowCreateModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 16px', background: T.sky, color: '#03203a', borderRadius: 10, border: 'none', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
           <Plus size={16} /> Buat Dokumen Baru
         </button>
       </div>
@@ -142,9 +170,14 @@ const Documents: React.FC = () => {
                     </span>
                   </td>
                   <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                    <button style={{ padding: 7, background: T.inset, border: `1px solid ${T.line}`, borderRadius: 8, cursor: 'pointer', color: T.dim, display: 'inline-flex' }} title="Download">
-                      <Download size={14} />
-                    </button>
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                      <button style={{ padding: 7, background: T.inset, border: `1px solid ${T.line}`, borderRadius: 8, cursor: 'pointer', color: T.dim, display: 'inline-flex', transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = T.sky} onMouseLeave={e => e.currentTarget.style.color = T.dim} title="Download">
+                        <Download size={14} />
+                      </button>
+                      <button onClick={() => handleDeleteClick(doc.id)} style={{ padding: 7, background: T.inset, border: `1px solid ${T.line}`, borderRadius: 8, cursor: 'pointer', color: T.dim, display: 'inline-flex', transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = '#ef4444'} onMouseLeave={e => e.currentTarget.style.color = T.dim} title="Hapus">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -152,6 +185,85 @@ const Documents: React.FC = () => {
           </table>
         </div>
       </div>
+      {/* Create Document Modal */}
+      {showCreateModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: T.panel, padding: 24, borderRadius: 16, width: '100%', maxWidth: 440, border: `1px solid ${T.line}`, boxShadow: '0 10px 40px rgba(0,0,0,0.3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: 18, color: T.txt, fontWeight: 700 }}>Buat Dokumen Baru</h2>
+                <p style={{ margin: '4px 0 0', fontSize: 12, color: T.dim }}>Pilih template dokumen yang ingin dibuat.</p>
+              </div>
+              <button onClick={() => setShowCreateModal(false)} style={{ background: 'transparent', border: 'none', color: T.dim, cursor: 'pointer', padding: 4 }}><X size={20} /></button>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <button onClick={() => { setAlertModal({ title: 'Segera Hadir', message: 'Template belum tersedia.', type: 'info' }); setShowCreateModal(false) }} style={{ padding: 16, background: T.inset, border: `1px solid ${T.line}`, borderRadius: 12, display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', textAlign: 'left', color: T.txt, transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.borderColor = T.sky} onMouseLeave={e => e.currentTarget.style.borderColor = T.line}>
+                <div style={{ padding: 12, background: `${T.sky}20`, color: T.sky, borderRadius: 10 }}><FileText size={24} /></div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>Proposal Penawaran</div>
+                  <div style={{ fontSize: 12, color: T.dim, marginTop: 4 }}>Buat proposal desain & penawaran harga untuk klien baru.</div>
+                </div>
+              </button>
+
+              <button onClick={() => { setAlertModal({ title: 'Segera Hadir', message: 'Template belum tersedia.', type: 'info' }); setShowCreateModal(false) }} style={{ padding: 16, background: T.inset, border: `1px solid ${T.line}`, borderRadius: 12, display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', textAlign: 'left', color: T.txt, transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.borderColor = T.sky} onMouseLeave={e => e.currentTarget.style.borderColor = T.line}>
+                <div style={{ padding: 12, background: `${T.green}20`, color: T.green, borderRadius: 10 }}><FileSignature size={24} /></div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>Surat Perintah Kerja (SPK)</div>
+                  <div style={{ fontSize: 12, color: T.dim, marginTop: 4 }}>Buat kontrak kerja legal secara profesional.</div>
+                </div>
+              </button>
+
+              <button onClick={() => { if(onNavigate) onNavigate('invoice-builder'); setShowCreateModal(false) }} style={{ padding: 16, background: T.inset, border: `1px solid ${T.line}`, borderRadius: 12, display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', textAlign: 'left', color: T.txt, transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.borderColor = T.sky} onMouseLeave={e => e.currentTarget.style.borderColor = T.line}>
+                <div style={{ padding: 12, background: `${T.sky}20`, color: T.sky, borderRadius: 10 }}><Receipt size={24} /></div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>Invoice / Tagihan</div>
+                  <div style={{ fontSize: 12, color: T.dim, marginTop: 4 }}>Buat tagihan pembayaran termijn proyek.</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmId && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: T.panel, padding: 32, borderRadius: 20, width: '100%', maxWidth: 400, border: `1px solid ${T.line}`, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', textAlign: 'center' }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#ef444420', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+              <Trash2 size={32} />
+            </div>
+            <h3 style={{ fontSize: 20, fontWeight: 700, margin: '0 0 12px', color: T.txt }}>Hapus Dokumen?</h3>
+            <p style={{ fontSize: 14, color: T.dim, margin: '0 0 24px', lineHeight: 1.5 }}>
+              Tindakan ini tidak dapat dibatalkan. Dokumen akan dihapus secara permanen dari sistem.
+            </p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button onClick={() => setDeleteConfirmId(null)} style={{ flex: 1, padding: 12, borderRadius: 12, border: `1px solid ${T.line}`, background: 'transparent', color: T.txt, fontWeight: 600, cursor: 'pointer' }}>
+                Batal
+              </button>
+              <button onClick={executeDelete} style={{ flex: 1, padding: 12, borderRadius: 12, border: 'none', background: '#ef4444', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
+                Ya, Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Generic Alert Modal */}
+      {alertModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: T.panel, padding: 32, borderRadius: 20, width: '100%', maxWidth: 400, border: `1px solid ${T.line}`, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', textAlign: 'center' }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: alertModal.type === 'error' ? '#ef444420' : `${T.sky}20`, color: alertModal.type === 'error' ? '#ef4444' : T.sky, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 32 }}>{alertModal.type === 'error' ? 'error' : 'info'}</span>
+            </div>
+            <h3 style={{ fontSize: 20, fontWeight: 700, margin: '0 0 12px', color: T.txt }}>{alertModal.title}</h3>
+            <p style={{ fontSize: 14, color: T.dim, margin: '0 0 24px', lineHeight: 1.5 }}>{alertModal.message}</p>
+            <button onClick={() => setAlertModal(null)} style={{ width: '100%', padding: 12, borderRadius: 12, border: 'none', background: alertModal.type === 'error' ? '#ef4444' : T.sky, color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
+              Tutup
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

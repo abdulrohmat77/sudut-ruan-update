@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoice Builder — Sudut Ruang Arsitek</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+  :root {
+    --navy: #043666; --royal: #0A3863; --bright: #045D93;
+    --sky: #4AB3D8; --sky-soft: #5EC2E4; --light: #E1F0F8;
+    --ivory: #FEFEFE; --ink: #0A3863; --muted: #6b7a8f;
+    --hair: #d9e4ee; --paid: #16a34a; --warn: #ea580c;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #eef2f7; min-height: 100vh; }
+  body { font-family: 'Montserrat', sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* ============ APP LAYOUT ============ */
+  .app { display: grid; grid-template-columns: 380px 1fr; min-height: 100vh; }
+
+  /* ============ BUILDER PANEL ============ */
+  .builder { background: var(--navy); color: var(--ivory); padding: 20px; overflow-y: auto; height: 100vh; position: sticky; top: 0; }
+  .builder h2 { font-size: 11px; font-weight: 800; letter-spacing: 0.22em; text-transform: uppercase; color: var(--sky); margin-bottom: 4px; }
+  .builder .tag { font-size: 10px; color: rgba(255,255,255,0.6); margin-bottom: 20px; letter-spacing: 0.04em; }
+  .builder .group { margin-bottom: 18px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .builder .group:last-child { border-bottom: none; }
+  .builder .group-title { font-size: 9.5px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: var(--sky); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .builder .group-title .num { font-family: 'JetBrains Mono', monospace; color: rgba(255,255,255,0.4); }
+  .builder .field { margin-bottom: 10px; }
+  .builder label { display: block; font-size: 9px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.6); margin-bottom: 4px; }
+  .builder input, .builder textarea, .builder select { width: 100%; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: var(--ivory); padding: 8px 10px; font-family: 'Montserrat', sans-serif; font-size: 12px; border-radius: 3px; transition: all .15s; }
+  .builder input:focus, .builder textarea:focus, .builder select:focus { outline: none; border-color: var(--sky); background: rgba(74,179,216,0.08); }
+  .builder input.mono { font-family: 'JetBrains Mono', monospace; }
+  .builder input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cursor: pointer; }
+  .builder textarea { resize: vertical; min-height: 60px; line-height: 1.5; }
+  .builder .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .builder .helper { font-size: 9px; color: rgba(255,255,255,0.4); margin-top: 3px; font-style: italic; }
+  .builder .info-row { padding: 8px 10px; background: rgba(74,179,216,0.08); border: 1px solid rgba(74,179,216,0.2); border-radius: 3px; font-size: 10px; color: var(--sky); line-height: 1.5; }
+  .builder .info-row strong { color: var(--ivory); font-weight: 700; display: block; margin-bottom: 2px; font-size: 11px; }
+  .builder .info-row .auto { font-size: 9px; color: rgba(255,255,255,0.5); margin-top: 4px; font-style: italic; }
+
+  /* Custom Dropdown */
+  .custom-select-wrapper { position: relative; user-select: none; width: 100%; }
+  .custom-select { position: relative; display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: var(--ivory); padding: 8px 10px; font-size: 12px; border-radius: 3px; cursor: pointer; transition: all .15s; }
+  .custom-select:hover { border-color: rgba(255,255,255,0.3); }
+  .custom-select.open { border-color: var(--sky); background: rgba(74,179,216,0.08); }
+  .custom-select .arrow { border: solid rgba(255,255,255,0.6); border-width: 0 1.5px 1.5px 0; display: inline-block; padding: 3px; transform: rotate(45deg); margin-bottom: 2px; transition: transform .2s; }
+  .custom-select.open .arrow { transform: rotate(-135deg); margin-bottom: -2px; }
+  .custom-options { position: absolute; top: 100%; left: 0; right: 0; background: var(--navy); border: 1px solid var(--sky); border-radius: 3px; margin-top: 4px; z-index: 10; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+  .custom-options.open { display: block; }
+  .custom-option { padding: 10px; font-size: 12px; color: var(--ivory); cursor: pointer; transition: background .15s; }
+  .custom-option:hover { background: rgba(74,179,216,0.15); color: var(--sky); }
+  .custom-option.selected { background: rgba(74,179,216,0.25); color: var(--sky); font-weight: 600; }
+
+  /* Termijn cards */
+  .termijn-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 10px; margin-bottom: 8px; }
+  .termijn-card.current { border-color: var(--sky); background: rgba(74,179,216,0.08); }
+  .termijn-card .t-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; gap: 6px; }
+  .termijn-card .t-num { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--sky); font-weight: 700; }
+  .termijn-card .t-stat { font-size: 8px; padding: 2px 6px; border-radius: 2px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; user-select: none; }
+  .t-stat[data-stat="paid"] { background: var(--paid); color: white; }
+  .t-stat[data-stat="current"] { background: var(--sky); color: var(--navy); }
+  .t-stat[data-stat="upcoming"] { background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.7); }
+  .termijn-card input { font-size: 11px; padding: 5px 8px; margin-bottom: 4px; }
+  .del-mini { background: transparent; border: none; color: #ef4444; cursor: pointer; font-size: 11px; padding: 0 4px; }
+
+  /* Buttons */
+  .builder .btn-row { display: flex; gap: 6px; }
+  .btn { padding: 9px 14px; background: var(--sky); color: var(--navy); border: none; font-family: 'Montserrat', sans-serif; font-size: 9.5px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; cursor: pointer; border-radius: 3px; transition: all .15s; flex: 1; }
+  .btn:hover { background: var(--sky-soft); }
+  .btn.ghost { background: transparent; color: var(--ivory); border: 1px solid rgba(255,255,255,0.2); }
+  .btn.ghost:hover { background: rgba(255,255,255,0.06); }
+  .btn.add { background: rgba(74,179,216,0.15); color: var(--sky); border: 1px dashed var(--sky); width: 100%; margin-top: 4px; }
+
+  /* Logo uploaders */
+  .logo-uploader { display: flex; align-items: center; gap: 10px; padding: 8px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 3px; margin-bottom: 6px; }
+  .logo-uploader .preview { width: 48px; height: 32px; background: var(--ivory); border-radius: 3px; display: flex; align-items: center; justify-content: center; padding: 3px; flex-shrink: 0; overflow: hidden; }
+  .logo-uploader .preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .logo-uploader .preview .placeholder { font-size: 7px; color: var(--muted); letter-spacing: 0.05em; text-align: center; line-height: 1.1; }
+  .logo-uploader .info { flex: 1; }
+  .logo-uploader .info .lbl { font-size: 10px; font-weight: 600; color: var(--ivory); }
+  .logo-uploader .info .sub { font-size: 8.5px; color: rgba(255,255,255,0.5); margin-top: 1px; }
+  .logo-uploader .file-btn { background: var(--sky); color: var(--navy); border: none; padding: 5px 10px; font-size: 8.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; border-radius: 2px; font-family: inherit; }
+  .logo-uploader .file-btn:hover { background: var(--sky-soft); }
+  .logo-uploader input[type="file"] { display: none; }
+  .clear-logo { background: transparent; border: none; color: rgba(255,255,255,0.4); cursor: pointer; font-size: 12px; padding: 0 4px; }
+  .clear-logo:hover { color: #ef4444; }
+
+  .save-bar { position: sticky; bottom: 0; background: var(--navy); padding-top: 10px; margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); }
+  .save-status { font-size: 9px; color: rgba(255,255,255,0.5); text-align: center; margin-top: 6px; letter-spacing: 0.04em; }
+  .save-status.saved { color: var(--paid); }
+
+  /* ============ PREVIEW PANEL ============ */
+  .preview-pane { padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .preview-toolbar { display: flex; gap: 8px; width: 210mm; max-width: 100%; }
+  .preview-toolbar .btn { background: var(--navy); color: var(--ivory); flex: 0 0 auto; padding: 9px 18px; }
+  .preview-toolbar .btn:hover { background: var(--bright); }
+  .preview-toolbar .btn.alt { background: transparent; color: var(--navy); border: 1px solid var(--navy); }
+  .preview-toolbar .btn.alt:hover { background: var(--navy); color: var(--ivory); }
+
+  /* ============ A4 INVOICE ============ */
+  .page {
+    width: 210mm; min-height: 297mm; background: var(--ivory);
+    padding: 14mm 14mm 12mm; box-shadow: 0 8px 40px rgba(4, 54, 102, 0.18);
+    position: relative; display: flex; flex-direction: column;
+  }
+  .page::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, #5EC2E4 0%, #4AB3D8 32%, #045D93 100%);
+  }
+
+  /* Header */
+  .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 14mm; padding-bottom: 5mm; border-bottom: 1px solid var(--hair); }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand .logo-slot { width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .brand .logo-slot img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .brand-text .name { font-weight: 800; font-size: 14px; color: var(--navy); letter-spacing: -0.3px; line-height: 1.1; }
+  .brand-text .tag { font-size: 7px; font-weight: 600; letter-spacing: 0.22em; color: var(--bright); margin-top: 3px; text-transform: uppercase; }
+  .brand-text .legal { font-size: 7.5px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+
+  .doc-title { text-align: right; }
+  .doc-title .eyebrow { font-size: 8.5px; font-weight: 700; letter-spacing: 0.24em; color: var(--sky); text-transform: uppercase; }
+  .doc-title h1 { font-size: 30px; font-weight: 800; color: var(--navy); letter-spacing: -1.2px; line-height: 1; margin-top: 4px; }
+  .doc-title .ref { font-size: 9px; color: var(--navy); margin-top: 6px; letter-spacing: 0.04em; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+
+  /* Parties */
+  .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 5mm; }
+  .party .label { font-size: 7.5px; font-weight: 700; letter-spacing: 0.22em; color: var(--sky); text-transform: uppercase; margin-bottom: 3mm; display: flex; align-items: center; gap: 6px; }
+  .party .label::after { content: ""; flex: 1; height: 1px; background: var(--sky); opacity: 0.4; }
+  .party .name { font-size: 12px; font-weight: 700; color: var(--navy); }
+  .party .role { font-size: 8.5px; color: var(--bright); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 1px; }
+  .party .info { font-size: 8.5px; color: var(--muted); margin-top: 4px; line-height: 1.7; white-space: pre-line; }
+
+  /* Project box */
+  .project-box { margin-top: 5mm; padding: 4mm 5mm; background: var(--light); position: relative; }
+  .project-box::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--sky); }
+  .project-box .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5mm; }
+  .project-box .cell .l { font-size: 7px; font-weight: 700; letter-spacing: 0.2em; color: var(--bright); text-transform: uppercase; margin-bottom: 2px; }
+  .project-box .cell .v { font-size: 9.5px; color: var(--navy); font-weight: 600; line-height: 1.4; }
+
+  /* Invoice meta */
+  .invoice-meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5mm; margin-top: 4mm; }
+  .invoice-meta .cell { padding: 3mm 4mm; border: 1px solid var(--hair); position: relative; }
+  .invoice-meta .cell.auto { background: var(--light); border-color: transparent; }
+  .invoice-meta .cell .l { font-size: 7px; font-weight: 700; letter-spacing: 0.22em; color: var(--bright); text-transform: uppercase; margin-bottom: 2px; }
+  .invoice-meta .cell .v { font-size: 10px; font-weight: 600; color: var(--navy); }
+  .invoice-meta .cell .v.mono { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; }
+  .status-pill { display: inline-block; padding: 3px 9px; font-size: 7.5px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; border-radius: 2px; }
+  .status-pill.unpaid { background: var(--navy); color: var(--ivory); }
+  .status-pill.paid { background: var(--paid); color: var(--ivory); }
+
+  /* Contract Hero */
+  .contract-hero { margin-top: 5mm; padding: 5mm 6mm; background: linear-gradient(135deg, #043666 0%, #045D93 100%); color: var(--ivory); position: relative; overflow: hidden; }
+  .contract-hero::after { content: ""; position: absolute; right: -40px; top: -40px; width: 140px; height: 140px; border: 1px solid rgba(74,179,216,0.25); border-radius: 50%; }
+  .contract-hero::before { content: ""; position: absolute; right: -60px; bottom: -60px; width: 160px; height: 160px; border: 1px solid rgba(74,179,216,0.15); border-radius: 50%; }
+  .contract-hero .l { font-size: 8px; font-weight: 700; letter-spacing: 0.28em; color: var(--sky); text-transform: uppercase; position: relative; z-index: 1; }
+  .contract-hero .v { font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 800; margin-top: 4px; letter-spacing: -1px; position: relative; z-index: 1; }
+  .contract-hero .sub { font-size: 8.5px; color: rgba(255,255,255,0.7); margin-top: 3px; font-style: italic; position: relative; z-index: 1; }
+  .contract-hero .meta { position: absolute; right: 6mm; top: 50%; transform: translateY(-50%); text-align: right; z-index: 1; }
+  .contract-hero .meta .ml { font-size: 7.5px; letter-spacing: 0.2em; color: rgba(255,255,255,0.5); text-transform: uppercase; }
+  .contract-hero .meta .mv { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--sky); font-weight: 700; margin-top: 2px; }
+
+  /* Section title */
+  .sec-title { font-size: 8.5px; font-weight: 700; letter-spacing: 0.24em; color: var(--sky); text-transform: uppercase; margin: 6mm 0 3mm; display: flex; align-items: center; gap: 8px; }
+  .sec-title::after { content: ""; flex: 1; height: 1px; background: var(--hair); }
+  .sec-title .num { color: var(--navy); font-family: 'JetBrains Mono', monospace; }
+
+  /* Items table */
+  table.items { width: 100%; border-collapse: collapse; }
+  table.items thead { background: var(--navy); }
+  table.items thead th { color: var(--ivory); font-size: 7.5px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; padding: 8px 9px; text-align: left; }
+  table.items thead th.num { width: 26px; text-align: center; }
+  table.items thead th.right { text-align: right; }
+  table.items thead th.center { text-align: center; }
+  table.items tbody tr { border-bottom: 1px solid var(--hair); }
+  table.items tbody tr.current { background: rgba(74, 179, 216, 0.12); }
+  table.items tbody tr.paid { opacity: 0.6; }
+  table.items tbody td { padding: 8px 9px; font-size: 9.5px; color: var(--navy); vertical-align: top; line-height: 1.5; }
+  table.items tbody td.num { text-align: center; color: var(--sky); font-weight: 700; font-family: 'JetBrains Mono', monospace; font-size: 9px; }
+  table.items tbody td.center { text-align: center; }
+  table.items tbody td.right { text-align: right; font-variant-numeric: tabular-nums; font-family: 'JetBrains Mono', monospace; }
+  table.items tbody td .item-title { font-weight: 700; font-size: 10px; }
+  table.items tbody td .item-sub { font-size: 8px; color: var(--muted); margin-top: 2px; font-weight: 500; }
+  .pct-pill { display: inline-block; padding: 2px 8px; background: var(--light); color: var(--navy); font-size: 8.5px; font-weight: 700; font-family: 'JetBrains Mono', monospace; border-radius: 2px; }
+  .pct-pill.active { background: var(--sky); color: var(--navy); }
+  .row-stat { display: inline-block; padding: 2px 7px; font-size: 7px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; border-radius: 2px; }
+  .row-stat.paid { background: rgba(22, 163, 74, 0.15); color: var(--paid); }
+  .row-stat.current { background: var(--navy); color: var(--ivory); }
+  .row-stat.upcoming { background: var(--light); color: var(--bright); }
+
+  /* Bottom: Pay + Totals */
+  .bottom-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 6mm; margin-top: 5mm; }
+  .pay-box { padding: 4mm 5mm; background: var(--navy); color: var(--ivory); position: relative; overflow: hidden; }
+  .pay-box::after { content: ""; position: absolute; right: -30px; top: -30px; width: 100px; height: 100px; border: 1px solid rgba(74, 179, 216, 0.2); border-radius: 50%; }
+  .pay-box .h { font-size: 7.5px; font-weight: 700; letter-spacing: 0.24em; color: var(--sky); text-transform: uppercase; margin-bottom: 3mm; position: relative; z-index: 1; }
+  .bank { display: flex; align-items: center; gap: 10px; padding: 3mm 0; border-bottom: 1px solid rgba(255,255,255,0.1); position: relative; z-index: 1; }
+  .bank:last-child { border-bottom: none; padding-bottom: 0; }
+  .bank-logo { width: 52px; height: 34px; background: var(--ivory); border-radius: 3px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; padding: 4px; }
+  .bank-logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .bank-logo .placeholder { font-size: 7px; color: var(--muted); font-weight: 700; letter-spacing: 0.05em; text-align: center; }
+  .bank-info .bname { font-size: 8.5px; font-weight: 600; color: var(--sky); letter-spacing: 0.05em; }
+  .bank-info .bnum { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ivory); font-weight: 600; margin-top: 1px; letter-spacing: 0.06em; }
+  .bank-info .bholder { font-size: 7.5px; color: rgba(255,255,255,0.6); margin-top: 1px; letter-spacing: 0.04em; }
+
+  .totals { padding: 4mm 5mm; border: 1px solid var(--hair); display: flex; flex-direction: column; }
+  .totals .row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 9px; color: var(--muted); border-bottom: 1px solid var(--hair); align-items: center; }
+  .totals .row:last-of-type { border-bottom: none; }
+  .totals .row .v { color: var(--navy); font-weight: 600; font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; font-size: 9.5px; }
+  .totals .grand { margin-top: auto; padding: 3mm 4mm; background: var(--navy); color: var(--ivory); display: flex; justify-content: space-between; align-items: center; }
+  .totals .grand .l { font-size: 8.5px; letter-spacing: 0.22em; font-weight: 700; text-transform: uppercase; }
+  .totals .grand .v { color: var(--ivory); font-size: 14px; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
+  .totals .grand-sub { font-size: 7.5px; color: var(--muted); margin-top: 1mm; line-height: 1.5; }
+
+  /* ============ DIGITAL SIGNATURE BLOCK ============ */
+  .end-grid { display: grid; grid-template-columns: 1fr auto; gap: 6mm; margin-top: 5mm; align-items: start; }
+  .notes { padding: 3mm 4mm; background: var(--light); border-left: 3px solid var(--sky); }
+  .notes .h { font-size: 7.5px; font-weight: 700; letter-spacing: 0.22em; color: var(--bright); text-transform: uppercase; margin-bottom: 1.5mm; }
+  .notes p { font-size: 8px; color: var(--navy); line-height: 1.6; white-space: pre-line; }
+
+  .sign-block { border: 1px solid var(--hair); padding: 4mm 5mm; position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; flex-shrink: 0; }
+  .sign-badge { display: inline-block; background: var(--navy); color: var(--sky); font-size: 6.5px; font-weight: 800; letter-spacing: 0.3em; padding: 3px 8px; border-radius: 2px; position: absolute; top: -7px; left: 50%; transform: translateX(-50%); white-space: nowrap; }
+  .qr-box { display: flex; flex-direction: column; align-items: center; gap: 3px; margin-top: 4mm; }
+  .qr-box .qr { width: 24mm; height: 24mm; background: var(--ivory); padding: 1mm; border: 1px solid var(--hair); }
+  .qr-box .qr img, .qr-box .qr canvas { width: 100% !important; height: 100% !important; display: block; }
+  .qr-box .qr-label { font-size: 6.5px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; }
+  .sn-name { font-size: 10px; font-weight: 700; color: var(--navy); margin-top: 3mm; }
+  .sn-pos { font-size: 7.5px; color: var(--muted); margin-top: 1px; letter-spacing: 0.04em; }
+  .sn-hash { font-family: 'JetBrains Mono', monospace; font-size: 6px; color: var(--bright); margin-top: 1.5mm; letter-spacing: 0.05em; }
+  .sn-disclaimer { font-size: 6px; color: var(--muted); margin-top: 1.5mm; max-width: 36mm; line-height: 1.5; font-style: italic; }
+
+  /* Closing footer */
+  .closing { margin-top: auto; padding-top: 4mm; border-top: 1px solid var(--hair); display: flex; justify-content: space-between; align-items: center; }
+  .closing .quote { font-size: 7.5px; color: var(--muted); letter-spacing: 0.22em; text-transform: uppercase; font-weight: 600; }
+  .closing .quote span { color: var(--sky); }
+  .closing .ctc { font-size: 7.5px; color: var(--muted); }
+  .closing .page-no { font-family: 'JetBrains Mono', monospace; font-size: 7.5px; color: var(--muted); }
+
+  @page { size: A4; margin: 0; }
+  @media print {
+    html, body { background: #fff !important; }
+    body { display: block; }
+    .builder, .preview-toolbar { display: none !important; }
+    .app { display: block; }
+    .preview-pane { padding: 0; }
+    .page { box-shadow: none !important; margin: 0; width: 210mm; min-height: 297mm; }
+  }
+
+  @media (max-width: 1200px) { .app { grid-template-columns: 320px 1fr; } }
+  @media (max-width: 900px) { 
+    .app { display: flex; flex-direction: column; height: 100vh; overflow-y: auto; }
+    .builder { height: auto; position: relative; overflow-y: visible; padding: 16px; flex-shrink: 0; }
+    .preview-pane { padding: 16px; align-items: flex-start; overflow-x: auto; width: 100%; flex-shrink: 0; -webkit-overflow-scrolling: touch; }
+    .preview-toolbar { width: 100%; min-width: 210mm; }
+    .page { margin-left: 0; transform-origin: top left; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- ================= BUILDER PANEL ================= -->
+  <aside class="builder">
+    <h2>Invoice Builder</h2>
+    <div class="tag">Sudut Ruang Arsitek · v1.1</div>
+
+    <!-- LOGOS -->
+    <div class="group">
+      <div class="group-title"><span class="num">01</span> Logo</div>
+
+      <div class="logo-uploader">
+        <div class="preview" id="prev-sra"><span class="placeholder">Sudut<br>Ruang</span></div>
+        <div class="info"><div class="lbl">Logo Sudut Ruang</div><div class="sub">Header invoice</div></div>
+        <label class="file-btn">Upload<input type="file" accept="image/*" onchange="uploadLogo(event,'sra')"></label>
+        <button class="clear-logo" onclick="clearLogo('sra')" title="Hapus">✕</button>
+      </div>
+
+      <div class="logo-uploader">
+        <div class="preview" id="prev-mandiri"><span class="placeholder">Mandiri</span></div>
+        <div class="info"><div class="lbl">Logo Mandiri</div><div class="sub">Bank section</div></div>
+        <label class="file-btn">Upload<input type="file" accept="image/*" onchange="uploadLogo(event,'mandiri')"></label>
+        <button class="clear-logo" onclick="clearLogo('mandiri')" title="Hapus">✕</button>
+      </div>
+
+      <div class="logo-uploader">
+        <div class="preview" id="prev-bca"><span class="placeholder">BCA</span></div>
+        <div class="info"><div class="lbl">Logo BCA</div><div class="sub">Bank section</div></div>
+        <label class="file-btn">Upload<input type="file" accept="image/*" onchange="uploadLogo(event,'bca')"></label>
+        <button class="clear-logo" onclick="clearLogo('bca')" title="Hapus">✕</button>
+      </div>
+    </div>
+
+    <!-- INVOICE INFO -->
+    <div class="group">
+      <div class="group-title"><span class="num">02</span> Identitas Invoice</div>
+      <div class="field">
+        <label>Nomor Invoice</label>
+        <input type="text" id="invNo" class="mono" value="INV-050/VI/2026">
+      </div>
+      <div class="field">
+        <label>Tanggal Terbit</label>
+        <input type="date" id="invDate" value="2026-06-02">
+        <div class="helper">Jatuh tempo otomatis: H+7 dari tanggal terbit</div>
+      </div>
+      <div class="field">
+        <label>Status</label>
+        <div class="custom-select-wrapper" id="statusDropdown">
+          <div class="custom-select" onclick="toggleDropdown()">
+            <span id="statusSelectedText">Belum Dibayar</span>
+            <i class="arrow"></i>
+          </div>
+          <div class="custom-options" id="statusOptions">
+            <div class="custom-option selected" data-value="unpaid" onclick="selectStatus('unpaid', 'Belum Dibayar', this)">Belum Dibayar</div>
+            <div class="custom-option" data-value="paid" onclick="selectStatus('paid', 'Lunas', this)">Lunas</div>
+          </div>
+        </div>
+        <select id="invStatus" style="display: none;">
+          <option value="unpaid">Belum Dibayar</option>
+          <option value="paid">Lunas</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- CLIENT -->
+    <div class="group">
+      <div class="group-title"><span class="num">03</span> Klien</div>
+      <div class="field"><label>Nama Klien</label><input type="text" id="cliName" value="Alex Matulesi"></div>
+      <div class="field"><label>Jabatan / Peran</label><input type="text" id="cliRole" value="Pemberi Tugas"></div>
+      <div class="field"><label>Alamat & Kontak</label><textarea id="cliInfo">Bintaro Permai 3
+Telp: +62 123-4567</textarea></div>
+    </div>
+
+    <!-- PROJECT -->
+    <div class="group">
+      <div class="group-title"><span class="num">04</span> Proyek</div>
+      <div class="field"><label>Nama Proyek</label><input type="text" id="projName" value="Cafe Industrial"></div>
+      <div class="field"><label>Jenis Pekerjaan</label><input type="text" id="projType" value="Perancangan Arsitektur"></div>
+      <div class="row2">
+        <div class="field"><label>Lokasi</label><input type="text" id="projLoc" value="Bintaro Permai 3"></div>
+        <div class="field"><label>Luas Lahan</label><input type="text" id="projArea" value="8 × 24 m"></div>
+      </div>
+    </div>
+
+    <!-- CONTRACT -->
+    <div class="group">
+      <div class="group-title"><span class="num">05</span> Nilai Kontrak</div>
+      <div class="field">
+        <label>Nilai Kontrak Penuh (IDR)</label>
+        <input type="number" id="contractValue" class="mono" value="30000000">
+        <div class="helper">Lump sum · belum termasuk pajak</div>
+      </div>
+    </div>
+
+    <!-- TERMIJN -->
+    <div class="group">
+      <div class="group-title"><span class="num">06</span> Termijn Pembayaran</div>
+      <div id="termijnList"></div>
+      <button class="btn add" onclick="addTermijn()">+ Tambah Termijn</button>
+      <div class="helper" style="color:rgba(255,255,255,0.55); margin-top:6px;">Klik label status untuk ganti: Belum → Tagihan Ini → Lunas</div>
+    </div>
+
+    <!-- TAX -->
+    <div class="group">
+      <div class="group-title"><span class="num">07</span> Pajak Tagihan Ini</div>
+      <div class="row2">
+        <div class="field"><label>PPN (%)</label><input type="number" id="ppnRate" value="0" step="0.1"></div>
+        <div class="field"><label>PPh (%)</label><input type="number" id="pphRate" value="0" step="0.1"></div>
+      </div>
+    </div>
+
+    <!-- NOTES + SIGNER -->
+    <div class="group">
+      <div class="group-title"><span class="num">08</span> Catatan & Tanda Tangan Digital</div>
+      <div class="field"><label>Catatan Pembayaran</label><textarea id="notes">Mohon cantumkan nomor invoice pada keterangan transfer. Bukti pembayaran dapat dikirim ke admin@sudutruang.com atau WhatsApp +62 821-1111-5619.</textarea></div>
+      <div class="info-row">
+        <strong>Penandatangan</strong>
+        M. Habib Arrohman I. — Principal Architect
+        <div class="auto">Tanda tangan digital + stempel & QR otomatis dihasilkan</div>
+      </div>
+    </div>
+
+    <!-- SAVE BAR -->
+    <div class="save-bar">
+      <div class="btn-row">
+        <button class="btn ghost" onclick="resetData()">Reset</button>
+        <button class="btn" onclick="exportJSON()">Export JSON</button>
+      </div>
+      <div class="save-status" id="saveStatus">Auto-save aktif</div>
+    </div>
+  </aside>
+
+  <!-- ================= PREVIEW PANEL ================= -->
+  <main class="preview-pane">
+    <div class="preview-toolbar">
+      <button class="btn" onclick="generatePDF()">Cetak & Upload PDF</button>
+      <button class="btn alt" onclick="document.querySelector('.builder').scrollTo({top:0,behavior:'smooth'})">↑ Form ke Atas</button>
+    </div>
+
+    <div class="page" id="page">
+      <!-- Header -->
+      <div class="header">
+        <div class="brand">
+          <div class="logo-slot" id="hdrLogo"></div>
+          <div class="brand-text">
+            <div class="name">Sudut Ruang Arsitek</div>
+            <div class="tag">Designing Corners · Defining Spaces</div>
+            <div class="legal">CV. Sudut Ruang Archineering</div>
+          </div>
+        </div>
+        <div class="doc-title">
+          <div class="eyebrow">Tagihan Pembayaran</div>
+          <h1>INVOICE</h1>
+          <div class="ref" id="refDisplay">SRA/INV/050/VI/2026</div>
+        </div>
+      </div>
+
+      <!-- Parties -->
+      <div class="parties">
+        <div class="party">
+          <div class="label">Ditagihkan Kepada</div>
+          <div class="name" id="dCliName"></div>
+          <div class="role" id="dCliRole"></div>
+          <div class="info" id="dCliInfo"></div>
+        </div>
+        <div class="party">
+          <div class="label">Diterbitkan Oleh</div>
+          <div class="name">M. Habib Arrohman I.</div>
+          <div class="role">Principal Architect</div>
+          <div class="info">Jl. Krukah Lama Buntu No. 09, Ngagel Rejo
+Wonokromo, Surabaya 60245 — Jawa Timur
++62 821-1111-5619 · admin@sudutruang.com</div>
+        </div>
+      </div>
+
+      <!-- Project -->
+      <div class="project-box">
+        <div class="row">
+          <div class="cell"><div class="l">Nama Proyek</div><div class="v" id="dProjName"></div></div>
+          <div class="cell"><div class="l">Jenis Pekerjaan</div><div class="v" id="dProjType"></div></div>
+          <div class="cell"><div class="l">Lokasi</div><div class="v" id="dProjLoc"></div></div>
+          <div class="cell"><div class="l">Luas Lahan</div><div class="v" id="dProjArea"></div></div>
+        </div>
+      </div>
+
+      <!-- Invoice meta -->
+      <div class="invoice-meta">
+        <div class="cell"><div class="l">No. Invoice</div><div class="v mono" id="dInvNo"></div></div>
+        <div class="cell"><div class="l">Tanggal Terbit</div><div class="v" id="dInvDate"></div></div>
+        <div class="cell auto"><div class="l">Jatuh Tempo</div><div class="v" id="dInvDue"></div></div>
+        <div class="cell"><div class="l">Status</div><div class="v"><span class="status-pill" id="dStatus"></span></div></div>
+      </div>
+
+      <!-- Contract Hero -->
+      <div class="contract-hero">
+        <div class="l">Nilai Kontrak</div>
+        <div class="v">Rp <span id="dContractValue"></span></div>
+        <div class="sub">Lump sum fixed price · belum termasuk pajak</div>
+        <div class="meta">
+          <div class="ml">Sudah Dibayar</div>
+          <div class="mv">Rp <span id="dPaidTotal">0</span></div>
+          <div class="ml" style="margin-top:8px;">Sisa</div>
+          <div class="mv">Rp <span id="dRemaining">0</span></div>
+        </div>
+      </div>
+
+      <!-- Termijn -->
+      <div class="sec-title"><span class="num">01</span> Rincian Pembayaran Termijn</div>
+      <table class="items">
+        <thead>
+          <tr>
+            <th class="num">#</th>
+            <th style="width:42%">Uraian Tahapan</th>
+            <th class="center" style="width:12%">Persentase</th>
+            <th class="center" style="width:14%">Status</th>
+            <th class="right" style="width:22%">Nilai (IDR)</th>
+          </tr>
+        </thead>
+        <tbody id="termijnBody"></tbody>
+      </table>
+
+      <!-- Bottom: payment + totals -->
+      <div class="bottom-grid">
+        <div class="pay-box">
+          <div class="h">Pembayaran via Transfer Bank</div>
+          <div class="bank">
+            <div class="bank-logo" id="bankMandiriLogo"><span class="placeholder">MANDIRI</span></div>
+            <div class="bank-info">
+              <div class="bname">Bank Mandiri</div>
+              <div class="bnum">127-00-1143622-5</div>
+              <div class="bholder">a/n M. Habib Arrohman I.</div>
+            </div>
+          </div>
+          <div class="bank">
+            <div class="bank-logo" id="bankBcaLogo"><span class="placeholder">BCA</span></div>
+            <div class="bank-info">
+              <div class="bname">Bank Central Asia (BCA)</div>
+              <div class="bnum">130-024-2622</div>
+              <div class="bholder">a/n M. Habib Arrohman I.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="totals">
+          <div class="row"><span>Subtotal Tagihan Ini</span><span class="v" id="dSubtotal">0</span></div>
+          <div class="row"><span>PPN <span id="dPpnRate">0</span>%</span><span class="v" id="dPpn">0</span></div>
+          <div class="row"><span>PPh <span id="dPphRate">0</span>%</span><span class="v" id="dPph">0</span></div>
+          <div class="grand">
+            <span class="l">Total Tagihan</span>
+            <span class="v">Rp <span id="dGrand">0</span></span>
+          </div>
+          <div class="grand-sub" id="dGrandWords">—</div>
+        </div>
+      </div>
+
+      <!-- Notes + Digital Signature -->
+      <div class="end-grid">
+        <div class="notes">
+          <div class="h">Catatan</div>
+          <p id="dNotes"></p>
+        </div>
+
+        <div class="sign-block">
+          <div class="sign-badge">DIGITALLY SIGNED</div>
+          <div class="qr-box">
+            <div class="qr" id="qrCode"></div>
+            <div class="qr-label">Scan untuk verifikasi</div>
+          </div>
+          <div class="sn-name">M. Habib Arrohman I.</div>
+          <div class="sn-pos">Principal Architect · Sudut Ruang Arsitek</div>
+          <div class="sn-hash" id="signHash">SIG: —</div>
+          <div class="sn-disclaimer">Dokumen ini ditandatangani secara digital. Sah dan mengikat tanpa tanda tangan basah maupun stempel fisik.</div>
+        </div>
+      </div>
+
+      <!-- Closing -->
+      <div class="closing">
+        <div class="quote">Designing Corners <span>·</span> Defining Spaces</div>
+        <div class="ctc">admin@sudutruang.com · www.sudutruang.com · @arsitek.surabaya</div>
+        <div class="page-no">SRA-INV / v1.1 · 01/01</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  // =============== STATE ===============
+  let state = {
+    logos: { sra: null, mandiri: null, bca: null },
+    termijns: [
+      { label: 'Down Payment / Uang Muka', sub: 'Pengikatan kontrak · mulai pelaksanaan', percent: 40, status: 'current' },
+      { label: 'Termin 1 — Schematic & Design Development', sub: 'Denah · tampak · potongan · perspektif 3D', percent: 40, status: 'upcoming' },
+      { label: 'Termin 2 — Detail Drawing & RAB', sub: 'Pola lantai · plafon · detail · Rencana Anggaran Biaya', percent: 20, status: 'upcoming' }
+    ]
+  };
+
+  const STORAGE_KEY = 'sra-invoice-draft';
+  const MONTHS_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+  // =============== UTILITY ===============
+  const fmt = n => Math.round(n).toLocaleString('id-ID');
+  const $ = id => document.getElementById(id);
+
+  function formatID(d) {
+    if (!d || isNaN(d.getTime())) return '—';
+    return `${d.getDate()} ${MONTHS_ID[d.getMonth()]} ${d.getFullYear()}`;
+  }
+
+  function addDays(d, n) {
+    const out = new Date(d);
+    out.setDate(out.getDate() + n);
+    return out;
+  }
+
+  // Simple deterministic hash for signature reference
+  function makeHash(str) {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) {
+      h = ((h << 5) - h) + str.charCodeAt(i);
+      h |= 0;
+    }
+    return Math.abs(h).toString(16).toUpperCase().padStart(8, '0').slice(0, 12);
+  }
+
+  const numberToWords = (n) => {
+    n = Math.round(n);
+    if (n === 0) return 'Nol Rupiah';
+    const sat = ['','Satu','Dua','Tiga','Empat','Lima','Enam','Tujuh','Delapan','Sembilan','Sepuluh','Sebelas'];
+    function terbilang(num) {
+      if (num < 12) return sat[num];
+      if (num < 20) return sat[num-10] + ' Belas';
+      if (num < 100) return sat[Math.floor(num/10)] + ' Puluh ' + sat[num%10];
+      if (num < 200) return 'Seratus ' + terbilang(num-100);
+      if (num < 1000) return sat[Math.floor(num/100)] + ' Ratus ' + terbilang(num%100);
+      if (num < 2000) return 'Seribu ' + terbilang(num-1000);
+      if (num < 1000000) return terbilang(Math.floor(num/1000)) + ' Ribu ' + terbilang(num%1000);
+      if (num < 1000000000) return terbilang(Math.floor(num/1000000)) + ' Juta ' + terbilang(num%1000000);
+      return terbilang(Math.floor(num/1000000000)) + ' Miliar ' + terbilang(num%1000000000);
+    }
+    return terbilang(n).replace(/\s+/g,' ').trim() + ' Rupiah';
+  };
+
+  // =============== CUSTOM DROPDOWN ===============
+  function toggleDropdown() {
+    const sel = document.querySelector('#statusDropdown .custom-select');
+    const opts = document.getElementById('statusOptions');
+    if(sel) sel.classList.toggle('open');
+    if(opts) opts.classList.toggle('open');
+  }
+
+  function selectStatus(val, text, el) {
+    document.getElementById('statusSelectedText').textContent = text;
+    document.getElementById('invStatus').value = val;
+    
+    const opts = document.getElementById('statusOptions').querySelectorAll('.custom-option');
+    opts.forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    
+    document.querySelector('#statusDropdown .custom-select').classList.remove('open');
+    document.getElementById('statusOptions').classList.remove('open');
+    
+    render();
+    saveState();
+  }
+
+  window.addEventListener('click', function(e) {
+    const dropdown = document.getElementById('statusDropdown');
+    if (dropdown && !dropdown.contains(e.target)) {
+      const sel = dropdown.querySelector('.custom-select');
+      const opts = document.getElementById('statusOptions');
+      if(sel) sel.classList.remove('open');
+      if(opts) opts.classList.remove('open');
+    }
+  });
+
+  // =============== LOGO HANDLING ===============
+  function uploadLogo(e, key) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      state.logos[key] = reader.result;
+      saveState();
+      render();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function clearLogo(key) {
+    state.logos[key] = null;
+    saveState();
+    render();
+  }
+
+  function renderLogos() {
+    const update = (slotId, key, fallback) => {
+      const slot = $(slotId);
+      if (state.logos[key]) {
+        slot.innerHTML = `<img src="${state.logos[key]}" alt="${key}">`;
+      } else {
+        slot.innerHTML = `<span class="placeholder">${fallback}</span>`;
+      }
+    };
+    update('prev-sra', 'sra', 'Sudut<br>Ruang');
+    update('prev-mandiri', 'mandiri', 'Mandiri');
+    update('prev-bca', 'bca', 'BCA');
+
+    const hdr = $('hdrLogo');
+    if (state.logos.sra) {
+      hdr.innerHTML = `<img src="${state.logos.sra}" alt="Sudut Ruang">`;
+    } else {
+      hdr.innerHTML = `<svg viewBox="0 0 100 100" style="width:100%;height:100%"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5EC2E4"/><stop offset="1" stop-color="#043666"/></linearGradient></defs><rect x="10" y="10" width="80" height="80" rx="6" fill="url(#g)"/><text x="50" y="65" text-anchor="middle" font-family="Montserrat" font-size="44" font-weight="800" fill="white">R</text></svg>`;
+    }
+
+    const mLogo = $('bankMandiriLogo');
+    mLogo.innerHTML = state.logos.mandiri
+      ? `<img src="${state.logos.mandiri}" alt="Mandiri">`
+      : '<span class="placeholder">MANDIRI</span>';
+
+    const bLogo = $('bankBcaLogo');
+    bLogo.innerHTML = state.logos.bca
+      ? `<img src="${state.logos.bca}" alt="BCA">`
+      : '<span class="placeholder">BCA</span>';
+  }
+
+  // =============== TERMIJN BUILDER ===============
+  function renderTermijnBuilder() {
+    const list = $('termijnList');
+    list.innerHTML = '';
+    state.termijns.forEach((t, i) => {
+      const card = document.createElement('div');
+      card.className = 'termijn-card' + (t.status === 'current' ? ' current' : '');
+      card.innerHTML = `
+        <div class="t-head">
+          <span class="t-num">Termijn ${String(i+1).padStart(2,'0')}</span>
+          <span class="t-stat" data-stat="${t.status}" onclick="cycleStatus(${i})">${statusLabel(t.status)}</span>
+          <button class="del-mini" onclick="delTermijn(${i})" title="Hapus">✕</button>
+        </div>
+        <input type="text" placeholder="Label tahapan" value="${escapeHTML(t.label)}" oninput="updateT(${i},'label',this.value)">
+        <input type="text" placeholder="Sub-deskripsi" value="${escapeHTML(t.sub)}" oninput="updateT(${i},'sub',this.value)">
+        <input type="number" placeholder="Persentase (%)" value="${t.percent}" step="0.1" oninput="updateT(${i},'percent',parseFloat(this.value)||0)">
+      `;
+      list.appendChild(card);
+    });
+  }
+
+  function escapeHTML(s) { return String(s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+  function statusLabel(s) {
+    return s === 'paid' ? 'Lunas' : s === 'current' ? 'Tagihan Ini' : 'Belum';
+  }
+
+  function updateT(i, key, value) {
+    state.termijns[i][key] = value;
+    render();
+    saveState();
+  }
+
+  function cycleStatus(i) {
+    const order = ['upcoming', 'current', 'paid'];
+    const cur = state.termijns[i].status;
+    state.termijns[i].status = order[(order.indexOf(cur) + 1) % 3];
+    if (state.termijns[i].status === 'current') {
+      state.termijns.forEach((t, j) => { if (j !== i && t.status === 'current') t.status = 'upcoming'; });
+    }
+    render();
+    saveState();
+  }
+
+  function addTermijn() {
+    state.termijns.push({ label: 'Termijn Baru', sub: '', percent: 0, status: 'upcoming' });
+    renderTermijnBuilder();
+    render();
+    saveState();
+  }
+
+  function delTermijn(i) {
+    if (state.termijns.length <= 1) return;
+    state.termijns.splice(i, 1);
+    renderTermijnBuilder();
+    render();
+    saveState();
+  }
+
+  // =============== QR CODE ===============
+  function renderQR(payload) {
+    const el = $('qrCode');
+    if (!el || typeof QRCode === 'undefined') return;
+    el.innerHTML = '';
+    new QRCode(el, {
+      text: payload,
+      width: 160,
+      height: 160,
+      colorDark: '#043666',
+      colorLight: '#FEFEFE',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  }
+
+  // =============== RENDER PREVIEW ===============
+  function render() {
+    const contractValue = parseFloat($('contractValue').value) || 0;
+    const ppnRate = parseFloat($('ppnRate').value) || 0;
+    const pphRate = parseFloat($('pphRate').value) || 0;
+
+    // Identity & meta
+    $('refDisplay').textContent = 'SRA/' + ($('invNo').value || '');
+    $('dInvNo').textContent = $('invNo').value;
+
+    // Date handling: parse, format, calculate due H+7
+    const issueDateStr = $('invDate').value;
+    const issueDate = issueDateStr ? new Date(issueDateStr + 'T00:00:00') : new Date();
+    const dueDate = addDays(issueDate, 7);
+    $('dInvDate').textContent = formatID(issueDate);
+    $('dInvDue').textContent = formatID(dueDate);
+
+    const status = $('invStatus').value;
+    $('dStatus').textContent = status === 'paid' ? 'Lunas' : 'Belum Dibayar';
+    $('dStatus').className = 'status-pill ' + status;
+
+    // Client
+    $('dCliName').textContent = $('cliName').value;
+    $('dCliRole').textContent = $('cliRole').value;
+    $('dCliInfo').textContent = $('cliInfo').value;
+
+    // Project
+    $('dProjName').textContent = $('projName').value;
+    $('dProjType').textContent = $('projType').value;
+    $('dProjLoc').textContent = $('projLoc').value;
+    $('dProjArea').textContent = $('projArea').value;
+
+    // Contract hero
+    $('dContractValue').textContent = fmt(contractValue);
+
+    // Termijn rows
+    const tbody = $('termijnBody');
+    tbody.innerHTML = '';
+    let paidTotal = 0;
+    let currentAmount = 0;
+    state.termijns.forEach((t, i) => {
+      const amount = contractValue * (t.percent / 100);
+      if (t.status === 'paid') paidTotal += amount;
+      if (t.status === 'current') currentAmount += amount;
+      const tr = document.createElement('tr');
+      tr.className = t.status === 'current' ? 'current' : (t.status === 'paid' ? 'paid' : '');
+      tr.innerHTML = `
+        <td class="num">${String(i+1).padStart(2,'0')}</td>
+        <td>
+          <div class="item-title">${escapeHTML(t.label) || '—'}</div>
+          ${t.sub ? `<div class="item-sub">${escapeHTML(t.sub)}</div>` : ''}
+        </td>
+        <td class="center"><span class="pct-pill${t.status==='current'?' active':''}">${t.percent}%</span></td>
+        <td class="center"><span class="row-stat ${t.status}">${statusLabel(t.status)}</span></td>
+        <td class="right">${fmt(amount)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    $('dPaidTotal').textContent = fmt(paidTotal);
+    $('dRemaining').textContent = fmt(contractValue - paidTotal);
+
+    // Current invoice totals
+    const sub = currentAmount;
+    const ppn = sub * (ppnRate / 100);
+    const pph = sub * (pphRate / 100);
+    const grand = sub + ppn - pph;
+    $('dSubtotal').textContent = fmt(sub);
+    $('dPpnRate').textContent = ppnRate;
+    $('dPpn').textContent = fmt(ppn);
+    $('dPphRate').textContent = pphRate;
+    $('dPph').textContent = fmt(pph);
+    $('dGrand').textContent = fmt(grand);
+    $('dGrandWords').textContent = numberToWords(grand);
+
+    $('dNotes').textContent = $('notes').value;
+
+    // Digital signature: QR + Hash + stamp year
+    const qrPayload =
+      `INVOICE VERIFICATION\n` +
+      `=========================\n` +
+      `No: ${$('invNo').value}\n` +
+      `Tanggal: ${formatID(issueDate)}\n` +
+      `Klien: ${$('cliName').value}\n` +
+      `Proyek: ${$('projName').value}\n` +
+      `Nilai Kontrak: Rp ${fmt(contractValue)}\n` +
+      `Tagihan Ini: Rp ${fmt(grand)}\n` +
+      `Penerbit: M. Habib Arrohman I.\n` +
+      `Studio: Sudut Ruang Arsitek\n` +
+      `admin@sudutruang.com\n` +
+      `www.sudutruang.com`;
+    renderQR(qrPayload);
+
+    const hashSource = `${$('invNo').value}|${issueDateStr}|${contractValue}|${grand}|${$('cliName').value}`;
+    $('signHash').textContent = 'SIG: ' + makeHash(hashSource);
+    $('stampYear').textContent = String(issueDate.getFullYear());
+
+    renderLogos();
+  }
+
+  // =============== STATE PERSISTENCE ===============
+  const FIELD_IDS = ['invNo','invDate','invStatus','cliName','cliRole','cliInfo',
+     'projName','projType','projLoc','projArea','contractValue','ppnRate','pphRate','notes'];
+
+  async function saveState() {
+    const payload = { logos: state.logos, termijns: state.termijns, fields: {} };
+    FIELD_IDS.forEach(id => { payload.fields[id] = $(id).value; });
+    try {
+      if (window.storage) {
+        await window.storage.set(STORAGE_KEY, JSON.stringify(payload));
+        showSaved();
+      }
+    } catch (err) {}
+  }
+
+  async function loadState() {
+    try {
+      if (!window.storage) return;
+      const res = await window.storage.get(STORAGE_KEY);
+      if (!res) return;
+      const data = JSON.parse(res.value);
+      if (data.logos) state.logos = data.logos;
+      if (data.termijns) state.termijns = data.termijns;
+      if (data.fields) {
+        Object.entries(data.fields).forEach(([id, val]) => {
+          const el = $(id);
+          if (el) el.value = val;
+        });
+      }
+    } catch (err) {}
+  }
+
+  let saveTimer;
+  function showSaved() {
+    const s = $('saveStatus');
+    s.textContent = '✓ Tersimpan';
+    s.classList.add('saved');
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      s.textContent = 'Auto-save aktif';
+      s.classList.remove('saved');
+    }, 1500);
+  }
+
+  function resetData() {
+    if (!confirm('Reset semua data ke default?')) return;
+    if (window.storage) window.storage.delete(STORAGE_KEY);
+    location.reload();
+  }
+
+  function exportJSON() {
+    const payload = {
+      logos: { sra: !!state.logos.sra, mandiri: !!state.logos.mandiri, bca: !!state.logos.bca },
+      termijns: state.termijns,
+      fields: {}
+    };
+    FIELD_IDS.forEach(id => { payload.fields[id] = $(id).value; });
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `invoice-${$('invNo').value || 'draft'}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // =============== INIT ===============
+  function attachListeners() {
+    document.querySelectorAll('.builder input, .builder textarea, .builder select').forEach(el => {
+      if (el.type === 'file') return;
+      el.addEventListener('input', () => { render(); saveState(); });
+      el.addEventListener('change', () => { render(); saveState(); });
+    });
+  }
+  async function generatePDF() {
+    const btn = document.querySelector('.preview-toolbar .btn');
+    const originalText = btn.textContent;
+    btn.textContent = 'Memproses & Upload...';
+    btn.disabled = true;
+
+    try {
+      const element = document.getElementById('page');
+      
+      const originalMinHeight = element.style.minHeight;
+      const originalBoxShadow = element.style.boxShadow;
+      element.style.minHeight = '296mm';
+      element.style.boxShadow = 'none';
+
+      const opt = {
+        margin:       0,
+        filename:     `Invoice-${$('invNo').value || 'draft'}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0 },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak:    { mode: 'avoid-all' }
+      };
+      
+      // 1. Simpan ke komputer (opsional, tapi baik untuk user experience)
+      const worker = html2pdf().set(opt).from(element);
+      await worker.save();
+
+      // 2. Dapatkan data URI base64 dari PDF
+      const pdfBase64 = await worker.outputPdf('datauristring');
+
+      // Kembalikan style
+      element.style.minHeight = originalMinHeight;
+      element.style.boxShadow = originalBoxShadow;
+
+      // 3. Kirim ke React App (parent)
+      window.parent.postMessage({
+        type: 'INVOICE_PDF_GENERATED',
+        pdfBase64: pdfBase64,
+        invoiceData: {
+          invNo: $('invNo').value || 'draft',
+          clientName: $('cliName').value,
+          projName: $('projName').value,
+          contractValue: $('contractValue').value,
+          total: $('dGrand').textContent
+        }
+      }, '*');
+
+    } catch (err) {
+      console.error('PDF Generation error', err);
+      alert('Gagal membuat atau mengupload PDF.');
+    } finally {
+      btn.textContent = originalText;
+      btn.disabled = false;
+    }
+  }
+
+  (async function init() {
+    await loadState();
+    renderTermijnBuilder();
+    attachListeners();
+    render();
+  })();
+</script>
+</body>
+</html>

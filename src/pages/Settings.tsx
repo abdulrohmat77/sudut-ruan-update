@@ -38,6 +38,7 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange, theme: propTheme, den
   const logoInputRef = useRef<HTMLInputElement>(null)
   
   const [webhookUrl, setWebhookUrl] = useState('')
+  const [webhookPdfUrl, setWebhookPdfUrl] = useState('')
 
   const [locked, setLocked] = useState(true)
 
@@ -78,6 +79,7 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange, theme: propTheme, den
     if (cfg.company_phone) setCompanyPhone(cfg.company_phone)
     if (cfg.company_logo) setLogo(cfg.company_logo)
     if (cfg.webhook_url) setWebhookUrl(cfg.webhook_url)
+    if (cfg.webhook_pdf_url) setWebhookPdfUrl(cfg.webhook_pdf_url)
     checkConnections()
   }
 
@@ -95,7 +97,10 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange, theme: propTheme, den
 
   const saveIntegrasi = async () => {
     setSaving(true)
-    await AIConfigService.set('webhook_url', webhookUrl)
+    await Promise.all([
+      AIConfigService.set('webhook_url', webhookUrl),
+      AIConfigService.set('webhook_pdf_url', webhookPdfUrl)
+    ])
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -219,7 +224,7 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange, theme: propTheme, den
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: T.txt }}>Bahasa antarmuka</div>
-                <div style={{ fontSize: 10, color: T.dim, maxWidth: 200 }}>Hybrid (EN terms) atau Full ID</div>
+                <div style={{ fontSize: 10, color: T.dim, maxWidth: 200 }}>Gabungan antara Indonesia dan Inggris (EN terms) atau Full ID</div>
               </div>
               <div style={{ width: 180 }}><SegmentedControl options={['Full ID', 'Hybrid']} value={lang} onChange={setLang} /></div>
             </div>
@@ -358,12 +363,21 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange, theme: propTheme, den
             </div>
 
             <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 10, fontWeight: 800, color: T.dim, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Webhook Base URL</div>
+              <div style={{ fontSize: 10, fontWeight: 800, color: T.dim, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Webhook Base URL (Chat/CRM)</div>
               <input 
                 type="text" 
                 value={webhookUrl}
                 onChange={e => setWebhookUrl(e.target.value)}
                 placeholder="https://your-n8n.com/webhook"
+                disabled={locked}
+                style={{ ...inputStyle, fontFamily: T.mono, fontSize: 11, color: T.txt, marginBottom: 16 }} 
+              />
+              <div style={{ fontSize: 10, fontWeight: 800, color: T.dim, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Webhook Generator PDF</div>
+              <input 
+                type="text" 
+                value={webhookPdfUrl}
+                onChange={e => setWebhookPdfUrl(e.target.value)}
+                placeholder="https://your-n8n.com/webhook/pdf-generator"
                 disabled={locked}
                 style={{ ...inputStyle, fontFamily: T.mono, fontSize: 11, color: T.txt, marginBottom: 8 }} 
               />

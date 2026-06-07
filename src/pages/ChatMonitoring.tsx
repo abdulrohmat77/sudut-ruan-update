@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { DBConversation, DBMessage, ConversationService, QuickReplyService, DBQuickReply } from '../services/supabaseClient'
 import { T, Icon, Avatar, Tag, ProgBar, Btn, Dot, Panel, statusColor } from '../components/AcosUI'
+import { n8nService } from '../services/n8nWebhookService'
 
 type MobileView = 'list' | 'chat' | 'panel'
 
@@ -152,12 +153,25 @@ const ChatMonitoring: React.FC<ChatMonitoringProps> = ({
       metadata: { dashboardSent: true },
     }
     setMessageInput('')
+    
     await ConversationService.insertMessage(msg)
     await ConversationService.upsertConversation({
       id: selectedConv.id,
       last_message: text,
       last_message_at: new Date().toISOString(),
     })
+
+    const meta = (selectedConv.metadata || {}) as Record<string, any>
+    const recipient = meta.phoneNumber || meta.igUsername || selectedConv.id
+
+    await n8nService.sendMessageToClient({
+      conversationId: selectedConv.id,
+      clientPhoneOrUsername: recipient,
+      message: text,
+      source: selectedConv.source,
+      senderRole: 'human',
+    })
+
     loadMessages(selectedConv.id)
   }
 
@@ -166,7 +180,15 @@ const ChatMonitoring: React.FC<ChatMonitoringProps> = ({
     const newMode = selectedConv.mode === 'ai' ? 'manual' : 'ai'
     setTogglingMode(true)
     setConversations((prev) => prev.map((c) => (c.id === selectedConv.id ? { ...c, mode: newMode } : c)))
+    
     await ConversationService.toggleMode(selectedConv.id, newMode)
+    
+    await n8nService.toggleConversationMode({
+      conversationId: selectedConv.id,
+      newMode: newMode,
+      triggeredBy: 'dashboard-operator'
+    })
+
     setTogglingMode(false)
   }
 
@@ -319,7 +341,7 @@ const ChatMonitoring: React.FC<ChatMonitoringProps> = ({
                       </div>
                       <div style={{ fontSize: 9.5, color: T.dim, marginTop: 4, alignSelf: isClient ? "flex-start" : "flex-end", display: "flex", alignItems: "center", gap: 4 }}>
                         {formatTime(msg.created_at)}
-                        {!isClient && <Icon name="CheckCircle2" size={10} color={T.sky} style={{ opacity: 0.6 }} />}
+                        {!isClient && <Icon name="CheckCheck" size={13} color={T.sky} style={{ opacity: 0.9 }} />}
                       </div>
                     </div>
                   )

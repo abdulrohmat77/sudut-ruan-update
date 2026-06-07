@@ -11,6 +11,7 @@ import Analytics from './pages/Analytics'
 import AutomationLog from './pages/AutomationLog'
 import Settings from './pages/Settings'
 import LoginPage from './pages/LoginPage'
+import InvoiceBuilder from './pages/InvoiceBuilder'
 import { supabase, AIConfigService } from './services/supabaseClient'
 import { authService } from './services/auth'
 import { playNotificationSound, primeAudio, showBrowserNotification } from './services/notify'
@@ -24,6 +25,7 @@ export type PageType =
   | 'analytics'
   | 'automation'
   | 'settings'
+  | 'invoice-builder'
 
 const pageTitles: Record<PageType, string> = {
   dashboard: 'Command Center',
@@ -33,6 +35,7 @@ const pageTitles: Record<PageType, string> = {
   analytics: 'Analitik & KPI',
   automation: 'Pusat Automasi',
   settings: 'Pengaturan',
+  'invoice-builder': 'Buat Invoice',
 }
 
 class PageErrorBoundary extends Component<
@@ -251,7 +254,9 @@ function App() {
       case 'pipeline':
         return <Pipeline />
       case 'documents':
-        return <Documents />
+        return <Documents onNavigate={setCurrentPage} />
+      case 'invoice-builder':
+        return <InvoiceBuilder onBack={() => setCurrentPage('documents')} />
       case 'analytics':
         return <Analytics />
       case 'automation':

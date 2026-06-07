@@ -136,7 +136,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         style={{ background: T.sidebar }}
       >
         {/* Logo */}
-        <div className="px-md py-md flex items-center justify-between border-b" style={{ borderColor: T.line }}>
+        <div className="h-14 px-md flex items-center justify-between border-b flex-shrink-0" style={{ borderColor: T.line }}>
           <div className="flex items-center gap-sm min-w-0">
             <div className="w-9 h-9 rounded-xl bg-brand-accent/15 border border-brand-accent/25 flex items-center justify-center flex-shrink-0 overflow-hidden">
               {logo ? (

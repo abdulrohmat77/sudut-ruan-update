@@ -46,7 +46,7 @@ function FlowStrip({ setPage, clients }: { setPage: (p: any) => void, clients: D
       <div style={{ display: "flex", alignItems: "stretch", padding: "18px 16px", gap: 0, overflowX: "auto" }}>
         {flow.map((s, i) => (
           <React.Fragment key={s.key}>
-            <div onClick={() => setPage("Client CRM")} style={{ flex: 1, minWidth: 92, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, cursor: "pointer", position: "relative" }}>
+            <div onClick={() => setPage("pipeline")} style={{ flex: 1, minWidth: 92, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, cursor: "pointer", position: "relative" }}>
               <div style={{ width: 46, height: 46, borderRadius: 12, display: "grid", placeItems: "center", position: "relative",
                 background: pulse === i ? "rgba(74,179,216,0.22)" : "rgba(255,255,255,0.04)", border: `1px solid ${pulse === i ? T.sky : T.line}`, transition: "all .4s", transform: pulse === i ? "scale(1.08)" : "none" }}>
                 <Icon name={s.icon} size={19} color={pulse === i ? T.sky : T.sub} />
@@ -84,7 +84,7 @@ function AutomationCard({ setPage }: { setPage: (p: any) => void }) {
         </div>
       </div>
       <div style={{ padding: "4px 14px 14px" }}>
-        <Btn v="ghost" size="sm" icon="ArrowRight" onClick={() => setPage("Pusat Automasi")} style={{ width: "100%", justifyContent: "center" }}>Lihat Log Automasi</Btn>
+        <Btn v="ghost" size="sm" icon="ArrowRight" onClick={() => setPage("automation")} style={{ width: "100%", justifyContent: "center" }}>Lihat Log Automasi</Btn>
       </div>
     </Panel>
   );
@@ -96,13 +96,13 @@ function AttentionCard({ setPage, clients }: { setPage: (p: any) => void, client
   
   const items = [];
   if (hotLeads.length > 0) {
-    items.push({ icon: "Flame", color: T.amber, title: `${hotLeads.length} lead HOT tahap negosiasi`, sub: hotLeads.map(c => c.name).join(', '), page: "Client CRM" });
+    items.push({ icon: "Flame", color: T.amber, title: `${hotLeads.length} lead HOT tahap negosiasi`, sub: hotLeads.map(c => c.name).join(', '), page: "pipeline" });
   }
   if (newLeads.length > 0) {
-    items.push({ icon: "Inbox", color: T.sky, title: `${newLeads.length} lead baru masuk`, sub: "Siap difollow up oleh AI/Human", page: "Client CRM" });
+    items.push({ icon: "Inbox", color: T.sky, title: `${newLeads.length} lead baru masuk`, sub: "Siap difollow up oleh AI/Human", page: "pipeline" });
   }
   if (items.length === 0) {
-    items.push({ icon: "CheckCircle2", color: T.green, title: "Semua aman terkendali", sub: "Tidak ada issue yang butuh perhatian", page: "Dashboard" });
+    items.push({ icon: "CheckCircle2", color: T.green, title: "Semua aman terkendali", sub: "Tidak ada issue yang butuh perhatian", page: "dashboard" });
   }
   
   return (
@@ -172,12 +172,12 @@ function ProjectsMini({ setPage, clients }: { setPage: (p: any) => void, clients
   return (
     <Panel>
       <PanelHead title="Proyek Berjalan" sub={`${deals.length} proyek aktif`} icon="Kanban"
-        right={<Btn v="ghost" size="sm" icon="ArrowRight" onClick={() => setPage("Client CRM")}>Semua</Btn>} />
+        right={<Btn v="ghost" size="sm" icon="ArrowRight" onClick={() => setPage("pipeline")}>Semua</Btn>} />
       <div style={{ padding: "6px 0", maxHeight: 300, overflowY: "auto" }}>
         {deals.length === 0 ? (
           <div style={{ padding: 20, textAlign: "center", color: T.dim, fontSize: 11 }}>Belum ada deal/proyek aktif</div>
         ) : deals.map((p) => (
-          <div key={p.id} onClick={() => setPage("Client CRM")} className="ac-row hover:bg-white/5 transition-colors" style={{ display: "flex", alignItems: "center", gap: 13, padding: "11px 18px", cursor: "pointer" }}>
+          <div key={p.id} onClick={() => setPage("pipeline")} className="ac-row hover:bg-white/5 transition-colors" style={{ display: "flex", alignItems: "center", gap: 13, padding: "11px 18px", cursor: "pointer" }}>
             <Ring value={100} size={42} stroke={5} color={T.green} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 12.5, fontWeight: 700, color: T.txt, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name} - {p.building_type}</div>
@@ -246,8 +246,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           <div style={{ fontSize: 13, color: T.dim, marginTop: 6 }}>{new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · Berikut ringkasan operasional bisnis hari ini.</div>
         </div>
         <div style={{ display: "flex", gap: 9 }}>
-          <Btn v="ghost" size="sm" icon="FileText" onClick={() => handleNav("Dokumen & SPK")}>Dokumen</Btn>
-          <Btn v="primary" size="sm" icon="Plus" onClick={() => handleNav("Client CRM")}>Lead Baru</Btn>
+          <Btn v="ghost" size="sm" icon="FileText" onClick={() => handleNav("documents")}>Dokumen</Btn>
+          <Btn v="primary" size="sm" icon="Plus" onClick={() => handleNav("pipeline")}>Lead Baru</Btn>
         </div>
       </div>
 

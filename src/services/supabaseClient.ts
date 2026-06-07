@@ -338,6 +338,16 @@ export const DocumentService = {
 
     if (error) console.error('update document status error:', error)
   },
+
+  async delete(id: string) {
+    const { error } = await supabase
+      .from('documents')
+      .delete()
+      .eq('id', id)
+
+    if (error) console.error('delete document error:', error)
+    return { error }
+  },
 }
 
 // ============================================================
