@@ -22,6 +22,7 @@ const PinLock: React.FC<Props> = ({
   const [loaded, setLoaded] = useState(false)
   const [modal, setModal] = useState<null | 'unlock' | 'set'>(null)
   const [input, setInput] = useState('')
+  const [pinOld, setPinOld] = useState('')
   const [pinNew, setPinNew] = useState('')
   const [pinConfirm, setPinConfirm] = useState('')
   const [error, setError] = useState('')
@@ -61,12 +62,17 @@ const PinLock: React.FC<Props> = ({
 
   const openSetPin = () => {
     setError('')
+    setPinOld('')
     setPinNew('')
     setPinConfirm('')
     setModal('set')
   }
 
   const savePin = async () => {
+    if (hasPin && pinOld !== pin) {
+      setError('PIN saat ini salah.')
+      return
+    }
     if (!/^\d{4,6}$/.test(pinNew)) {
       setError('PIN harus 4–6 digit angka.')
       return
@@ -83,6 +89,10 @@ const PinLock: React.FC<Props> = ({
   }
 
   const removePin = async () => {
+    if (hasPin && pinOld !== pin) {
+      setError('PIN saat ini salah.')
+      return
+    }
     setSaving(true)
     await AIConfigService.set('settings_pin', '')
     setPin('')
@@ -91,7 +101,7 @@ const PinLock: React.FC<Props> = ({
   }
 
   const inputCls =
-    'w-full px-md py-3 bg-surface-container-low border border-outline-variant rounded-lg text-body-md focus:ring-2 focus:ring-brand-accent outline-none tracking-[0.5em] text-center text-lg'
+    'w-full px-md py-3 bg-white text-black border border-outline-variant rounded-lg focus:ring-2 focus:ring-brand-accent outline-none tracking-[0.5em] text-center text-lg font-bold'
 
   return (
     <>
@@ -189,10 +199,21 @@ const PinLock: React.FC<Props> = ({
               </div>
             ) : (
               <div className="space-y-sm">
+                {hasPin && (
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    autoFocus
+                    value={pinOld}
+                    onChange={(e) => setPinOld(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="PIN saat ini"
+                    className={inputCls}
+                  />
+                )}
                 <input
                   type="password"
                   inputMode="numeric"
-                  autoFocus
+                  autoFocus={!hasPin}
                   value={pinNew}
                   onChange={(e) => setPinNew(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   placeholder="PIN baru (4–6 digit)"

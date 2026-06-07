@@ -36,6 +36,8 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange, theme: propTheme, den
   const [companyPhone, setCompanyPhone] = useState('+62 812-3456-7890')
   const [logo, setLogo] = useState('')
   const logoInputRef = useRef<HTMLInputElement>(null)
+  
+  const [webhookUrl, setWebhookUrl] = useState('')
 
   const [locked, setLocked] = useState(true)
 
@@ -75,6 +77,7 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange, theme: propTheme, den
     if (cfg.company_email) setCompanyEmail(cfg.company_email)
     if (cfg.company_phone) setCompanyPhone(cfg.company_phone)
     if (cfg.company_logo) setLogo(cfg.company_logo)
+    if (cfg.webhook_url) setWebhookUrl(cfg.webhook_url)
     checkConnections()
   }
 
@@ -85,6 +88,14 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange, theme: propTheme, den
       AIConfigService.set('company_email', companyEmail),
       AIConfigService.set('company_phone', companyPhone),
     ])
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  const saveIntegrasi = async () => {
+    setSaving(true)
+    await AIConfigService.set('webhook_url', webhookUrl)
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -306,7 +317,9 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange, theme: propTheme, den
       )}
 
       {activeTab === 'Integrasi' && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20, alignItems: "start" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+          <PinLock locked={locked} onChange={setLocked} lockedTitle="Integrasi Terkunci" lockedDesc="Pengaturan integrasi dikunci untuk mencegah perubahan URL secara tidak sengaja." />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20, alignItems: "start" }}>
           <Panel pad={20}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <div style={{ fontSize: 16, fontWeight: 800, color: T.txt }}>Integrasi</div>
@@ -348,10 +361,15 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange, theme: propTheme, den
               <div style={{ fontSize: 10, fontWeight: 800, color: T.dim, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Webhook Base URL</div>
               <input 
                 type="text" 
-                defaultValue="https://n8n.srv1696073.hstgr.cloud/webhook/wa-incoming-sudutruang/webhook" 
-                style={{ ...inputStyle, fontFamily: T.mono, fontSize: 11, color: T.dim }} 
-                readOnly 
+                value={webhookUrl}
+                onChange={e => setWebhookUrl(e.target.value)}
+                placeholder="https://your-n8n.com/webhook"
+                disabled={locked}
+                style={{ ...inputStyle, fontFamily: T.mono, fontSize: 11, color: T.txt, marginBottom: 8 }} 
               />
+              <Btn v="primary" size="sm" onClick={saveIntegrasi} disabled={locked || saving} icon={saved ? "CheckCircle" : "Save"}>
+                {saving ? 'Menyimpan...' : saved ? 'Tersimpan!' : 'Simpan URL'}
+              </Btn>
             </div>
 
             <div style={{ marginBottom: 24 }}>
@@ -373,6 +391,7 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange, theme: propTheme, den
               Test Connection
             </Btn>
           </Panel>
+          </div>
         </div>
       )}
     </div>
