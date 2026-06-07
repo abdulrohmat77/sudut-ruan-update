@@ -18,11 +18,11 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange, theme: propTheme, den
 
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  
+
   // ACOS Umum Settings state
   const theme = propTheme || localStorage.getItem('acos_theme') || 'Gelap'
   const density = propDensity || localStorage.getItem('acos_density') || 'Nyaman'
-  
+
   const [lang, setLang] = useState(localStorage.getItem('acos_lang') || 'Hybrid')
   const [autoRefresh, setAutoRefresh] = useState(localStorage.getItem('acos_refresh') !== 'false')
   const [notifSound, setNotifSound] = useState(localStorage.getItem('acos_sound') !== 'false')
@@ -36,7 +36,7 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange, theme: propTheme, den
   const [companyPhone, setCompanyPhone] = useState('+62 812-3456-7890')
   const [logo, setLogo] = useState('')
   const logoInputRef = useRef<HTMLInputElement>(null)
-  
+
   const [webhookUrl, setWebhookUrl] = useState('')
   const [webhookPdfUrl, setWebhookPdfUrl] = useState('')
 
@@ -112,7 +112,7 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange, theme: propTheme, den
     if (!file) return
     if (!file.type.startsWith('image/')) return alert('File harus berupa gambar.')
     if (file.size > 400 * 1024) return alert('Ukuran logo maksimal 400KB. Kompres dulu ya.')
-    
+
     const reader = new FileReader()
     reader.onload = async () => {
       const dataUrl = String(reader.result)
@@ -190,13 +190,13 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange, theme: propTheme, den
                 <div style={{ fontSize: 10, color: T.dim }}>Gelap (mission-control) atau terang</div>
               </div>
               <div style={{ width: 140 }}>
-                <SegmentedControl 
-                  options={['Gelap', 'Terang']} 
-                  value={theme} 
+                <SegmentedControl
+                  options={['Gelap', 'Terang']}
+                  value={theme}
                   onChange={(v) => {
                     localStorage.setItem('acos_theme', v);
                     window.dispatchEvent(new Event('themeChanged'));
-                  }} 
+                  }}
                 />
               </div>
             </div>
@@ -206,8 +206,8 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange, theme: propTheme, den
                 <div style={{ fontSize: 10, color: T.dim }}>Jarak antar elemen</div>
               </div>
               <div style={{ width: 140 }}><SegmentedControl options={['Nyaman', 'Padat']} value={density} onChange={(v) => {
-                    localStorage.setItem('acos_density', v);
-                    window.dispatchEvent(new Event('themeChanged'));
+                localStorage.setItem('acos_density', v);
+                window.dispatchEvent(new Event('themeChanged'));
               }} /></div>
             </div>
           </Panel>
@@ -280,7 +280,7 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange, theme: propTheme, den
               <div style={{ display: "flex", gap: 8 }}>
                 <input ref={logoInputRef} type="file" accept="image/*" onChange={onLogoSelect} style={{ display: "none" }} disabled={locked} />
                 <Btn v="ghost" size="sm" icon="Upload" onClick={() => logoInputRef.current?.click()} disabled={locked}>Unggah</Btn>
-                {logo && <Btn v="ghost" size="sm" icon="Trash2" onClick={() => {setLogo(''); AIConfigService.set('company_logo', ''); onLogoChange?.('')}} disabled={locked} style={{ color: T.red }}>Hapus</Btn>}
+                {logo && <Btn v="ghost" size="sm" icon="Trash2" onClick={() => { setLogo(''); AIConfigService.set('company_logo', ''); onLogoChange?.('') }} disabled={locked} style={{ color: T.red }}>Hapus</Btn>}
               </div>
             </div>
             <div style={{ marginBottom: 16 }}>
@@ -325,86 +325,86 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange, theme: propTheme, den
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           <PinLock locked={locked} onChange={setLocked} lockedTitle="Integrasi Terkunci" lockedDesc="Pengaturan integrasi dikunci untuk mencegah perubahan URL secara tidak sengaja." />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20, alignItems: "start" }}>
-          <Panel pad={20}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: T.txt }}>Integrasi</div>
-              <Btn v="ghost" size="sm" icon="RefreshCcw" onClick={checkConnections} disabled={checking}>PERIKSA ULANG</Btn>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {[
-                { name: 'WhatsApp Business', sub: 'via n8n', icon: 'MessageSquare' },
-                { name: 'Instagram', sub: 'via n8n', icon: 'Instagram' },
-                { name: 'n8n Workflow', sub: 'Webhook engine', icon: 'Workflow' },
-                { name: 'Supabase', sub: 'Database', icon: 'Database' }
-              ].map((item, idx) => (
-                <div key={idx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", background: T.inset, border: `1px solid ${T.line}`, borderRadius: 12 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 10, background: T.bg, border: `1px solid ${T.line}`, display: "grid", placeItems: "center" }}>
-                      <Icon name={item.icon as any} size={18} color={T.sky} />
+            <Panel pad={20}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                <div style={{ fontSize: 16, fontWeight: 800, color: T.txt }}>Integrasi</div>
+                <Btn v="ghost" size="sm" icon="RefreshCcw" onClick={checkConnections} disabled={checking}>PERIKSA ULANG</Btn>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {[
+                  { name: 'WhatsApp Business', sub: 'via n8n', icon: 'MessageSquare' },
+                  { name: 'Instagram', sub: 'via n8n', icon: 'Instagram' },
+                  { name: 'n8n Workflow', sub: 'Webhook engine', icon: 'Workflow' },
+                  { name: 'Supabase', sub: 'Database', icon: 'Database' }
+                ].map((item, idx) => (
+                  <div key={idx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", background: T.inset, border: `1px solid ${T.line}`, borderRadius: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 10, background: T.bg, border: `1px solid ${T.line}`, display: "grid", placeItems: "center" }}>
+                        <Icon name={item.icon as any} size={18} color={T.sky} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: T.txt }}>{item.name}</div>
+                        <div style={{ fontSize: 11, color: T.dim }}>{item.sub}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: T.txt }}>{item.name}</div>
-                      <div style={{ fontSize: 11, color: T.dim }}>{item.sub}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 800, color: connSupabase === 'fail' ? T.dim : T.green }}>
+                      <Dot color={connSupabase === 'fail' ? T.dim : T.green} size={6} />
+                      {connSupabase === 'fail' ? 'Terputus' : 'Terhubung'}
                     </div>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 800, color: connSupabase === 'fail' ? T.dim : T.green }}>
-                    <Dot color={connSupabase === 'fail' ? T.dim : T.green} size={6} />
-                    {connSupabase === 'fail' ? 'Terputus' : 'Terhubung'}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Panel>
+                ))}
+              </div>
+            </Panel>
 
-          <Panel pad={20}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24 }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: T.txt }}>n8n Webhook URL</div>
-              <Icon name="Lock" size={14} color={T.amber} />
-            </div>
+            <Panel pad={20}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24 }}>
+                <div style={{ fontSize: 16, fontWeight: 800, color: T.txt }}>n8n Webhook URL</div>
+                <Icon name="Lock" size={14} color={T.amber} />
+              </div>
 
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 10, fontWeight: 800, color: T.dim, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Webhook Base URL (Chat/CRM)</div>
-              <input 
-                type="text" 
-                value={webhookUrl}
-                onChange={e => setWebhookUrl(e.target.value)}
-                placeholder="https://your-n8n.com/webhook"
-                disabled={locked}
-                style={{ ...inputStyle, fontFamily: T.mono, fontSize: 11, color: T.txt, marginBottom: 16 }} 
-              />
-              <div style={{ fontSize: 10, fontWeight: 800, color: T.dim, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Webhook Generator PDF</div>
-              <input 
-                type="text" 
-                value={webhookPdfUrl}
-                onChange={e => setWebhookPdfUrl(e.target.value)}
-                placeholder="https://your-n8n.com/webhook/pdf-generator"
-                disabled={locked}
-                style={{ ...inputStyle, fontFamily: T.mono, fontSize: 11, color: T.txt, marginBottom: 8 }} 
-              />
-              <Btn v="primary" size="sm" onClick={saveIntegrasi} disabled={locked || saving} icon={saved ? "CheckCircle" : "Save"}>
-                {saving ? 'Menyimpan...' : saved ? 'Tersimpan!' : 'Simpan URL'}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: T.dim, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Webhook Base URL (Chat/CRM)</div>
+                <input
+                  type="text"
+                  value={webhookUrl}
+                  onChange={e => setWebhookUrl(e.target.value)}
+                  placeholder="https://your-n8n.com/webhook"
+                  disabled={locked}
+                  style={{ ...inputStyle, fontFamily: T.mono, fontSize: 11, color: T.txt, marginBottom: 16 }}
+                />
+                <div style={{ fontSize: 10, fontWeight: 800, color: T.dim, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Webhook Generator PDF</div>
+                <input
+                  type="text"
+                  value={webhookPdfUrl}
+                  onChange={e => setWebhookPdfUrl(e.target.value)}
+                  placeholder="https://your-n8n.com/webhook/pdf-generator"
+                  disabled={locked}
+                  style={{ ...inputStyle, fontFamily: T.mono, fontSize: 11, color: T.txt, marginBottom: 8 }}
+                />
+                <Btn v="primary" size="sm" onClick={saveIntegrasi} disabled={locked || saving} icon={saved ? "CheckCircle" : "Save"}>
+                  {saving ? 'Menyimpan...' : saved ? 'Tersimpan!' : 'Simpan URL'}
+                </Btn>
+              </div>
+
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: T.dim, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>AI Model (Groq)</div>
+                <input
+                  type="text"
+                  defaultValue="llama-3.3-70b-versatile"
+                  style={{ ...inputStyle, fontFamily: T.mono, fontSize: 11, color: T.dim }}
+                  readOnly
+                />
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 14, background: "rgba(74,179,216,0.1)", border: `1px solid ${T.sky}33`, borderRadius: 8, marginBottom: 24 }}>
+                <Icon name="Info" size={16} color={T.sky} />
+                <div style={{ fontSize: 11, color: T.txt, lineHeight: 1.4 }}>URL ini dipakai untuk komunikasi 2 arah antara dashboard dan workflow n8n Syifa.</div>
+              </div>
+
+              <Btn v="ghost" style={{ width: "100%", justifyContent: "center", border: `1px solid ${T.line}` }} icon="RefreshCcw" onClick={() => alert("Test connection simulated.")}>
+                Test Connection
               </Btn>
-            </div>
-
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ fontSize: 10, fontWeight: 800, color: T.dim, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>AI Model (Groq)</div>
-              <input 
-                type="text" 
-                defaultValue="llama-3.3-70b-versatile" 
-                style={{ ...inputStyle, fontFamily: T.mono, fontSize: 11, color: T.dim }} 
-                readOnly 
-              />
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 14, background: "rgba(74,179,216,0.1)", border: `1px solid ${T.sky}33`, borderRadius: 8, marginBottom: 24 }}>
-              <Icon name="Info" size={16} color={T.sky} />
-              <div style={{ fontSize: 11, color: T.txt, lineHeight: 1.4 }}>URL ini dipakai untuk komunikasi 2 arah antara dashboard dan workflow n8n Syifa.</div>
-            </div>
-
-            <Btn v="ghost" style={{ width: "100%", justifyContent: "center", border: `1px solid ${T.line}` }} icon="RefreshCcw" onClick={() => alert("Test connection simulated.")}>
-              Test Connection
-            </Btn>
-          </Panel>
+            </Panel>
           </div>
         </div>
       )}

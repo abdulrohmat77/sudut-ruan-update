@@ -505,7 +505,7 @@ const ChatMonitoring: React.FC<ChatMonitoringProps> = ({
       </div>
 
       {/* ── Column 3: Contact / Control Panel ─────────────────── */}
-      <div className={panelVisibility} style={{ width: 280, flexShrink: 0, flexDirection: "column", background: T.sidebar, borderLeft: `1px solid ${T.line}`, zIndex: 10 }}>
+      <div className={panelVisibility} style={{ width: isMobile && mobileView === 'panel' ? '100%' : 280, maxWidth: isMobile && mobileView === 'panel' ? '100%' : 280, flexShrink: 0, flexDirection: "column", background: T.sidebar, borderLeft: `1px solid ${T.line}`, zIndex: 10 }}>
         <div style={{ padding: "16px 20px", borderBottom: `1px solid ${T.line}`, display: "flex", alignItems: "center", gap: 12 }}>
           <div className="xl:hidden" onClick={() => setMobileView('chat')} style={{ cursor: "pointer", color: T.dim }}><Icon name="ArrowLeft" size={18} color={T.dim} /></div>
           <span style={{ fontSize: 13, fontWeight: 800, color: T.txt }}>Info Kontak</span>
