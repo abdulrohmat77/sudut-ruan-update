@@ -44,10 +44,20 @@ const InvoiceBuilder = ({ onBack }: Props) => {
 
           const fileUrl = cloudData.secure_url
 
+          // Normalisasi nomor WA: ambil digit saja, ubah awalan 0 -> 62
+          const rawPhone = (invoiceData.clientPhone || '').toString().replace(/\D/g, '')
+          const recipient = rawPhone.startsWith('0')
+            ? '62' + rawPhone.slice(1)
+            : rawPhone.startsWith('62')
+              ? rawPhone
+              : rawPhone.startsWith('8')
+                ? '62' + rawPhone
+                : rawPhone
+
           // 4. Insert to Documents Table
           const { error: dbError } = await DocumentService.insert({
             conversation_id: null,
-            client_phone: null,
+            client_phone: recipient || null,
             client_name: invoiceData.clientName || 'Klien Baru',
             type: 'invoice',
             status: 'sent',
@@ -63,30 +73,49 @@ const InvoiceBuilder = ({ onBack }: Props) => {
           // 5. Trigger n8n Webhook
           const configRow = await supabase.from('ai_config').select('value').eq('key', 'webhook_pdf_url').single()
           const n8nWebhookUrl = configRow?.data?.value || 'https://n8n.example.com/webhook/invoice-generated'
-          
+
+          let waSent = false
           try {
-            await fetch(n8nWebhookUrl, {
+            const webhookRes = await fetch(n8nWebhookUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 invoice_number: invoiceData.invNo,
                 client_name: invoiceData.clientName,
+                client_phone: recipient,
+                recipient: recipient,
                 project_name: invoiceData.projName,
+                contract_value: invoiceData.contractValue,
                 total_value: invoiceData.total,
                 pdf_url: fileUrl,
                 timestamp: new Date().toISOString()
               })
             })
-            console.log("Berhasil memanggil webhook n8n")
+            waSent = webhookRes.ok
+            console.log('Webhook n8n status:', webhookRes.status)
           } catch (webhookErr) {
-            console.warn("Webhook n8n gagal dipanggil (wajar jika URL dummy):", webhookErr)
+            console.warn('Webhook n8n gagal dipanggil:', webhookErr)
           }
 
-          setAlertInfo({
-            show: true, 
-            type: 'success', 
-            message: 'Berhasil! PDF telah selesai diproses dan di-upload ke sistem.'
-          })
+          if (waSent && recipient) {
+            setAlertInfo({
+              show: true,
+              type: 'success',
+              message: `Invoice berhasil dikirim lewat WhatsApp ke No ${recipient}.`
+            })
+          } else if (waSent) {
+            setAlertInfo({
+              show: true,
+              type: 'success',
+              message: 'Invoice berhasil diproses & dikirim ke sistem.'
+            })
+          } else {
+            setAlertInfo({
+              show: true,
+              type: 'success',
+              message: 'PDF berhasil di-upload, namun pengiriman WhatsApp belum terkonfirmasi. Cek workflow n8n.'
+            })
+          }
           
         } catch (err: any) {
           console.error(err)

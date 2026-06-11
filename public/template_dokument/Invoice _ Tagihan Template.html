@@ -331,6 +331,7 @@
       <div class="group-title"><span class="num">03</span> Klien</div>
       <div class="field"><label>Nama Klien</label><input type="text" id="cliName" value="Alex Matulesi"></div>
       <div class="field"><label>Jabatan / Peran</label><input type="text" id="cliRole" value="Pemberi Tugas"></div>
+      <div class="field"><label>No. WhatsApp Klien</label><input type="text" id="cliPhone" placeholder="6281234567890" value=""></div>
       <div class="field"><label>Alamat & Kontak</label><textarea id="cliInfo">Bintaro Permai 3
 Telp: +62 123-4567</textarea></div>
     </div>
@@ -862,7 +863,7 @@ Wonokromo, Surabaya 60245 — Jawa Timur
   }
 
   // =============== STATE PERSISTENCE ===============
-  const FIELD_IDS = ['invNo','invDate','invStatus','cliName','cliRole','cliInfo',
+  const FIELD_IDS = ['invNo','invDate','invStatus','cliName','cliRole','cliPhone','cliInfo',
      'projName','projType','projLoc','projArea','contractValue','ppnRate','pphRate','notes'];
 
   async function saveState() {
@@ -976,6 +977,7 @@ Wonokromo, Surabaya 60245 — Jawa Timur
         invoiceData: {
           invNo: $('invNo').value || 'draft',
           clientName: $('cliName').value,
+          clientPhone: $('cliPhone').value,
           projName: $('projName').value,
           contractValue: $('contractValue').value,
           total: $('dGrand').textContent
