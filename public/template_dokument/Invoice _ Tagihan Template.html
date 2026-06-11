@@ -977,7 +977,7 @@ Wonokromo, Surabaya 60245 — Jawa Timur
         invoiceData: {
           invNo: $('invNo').value || 'draft',
           clientName: $('cliName').value,
-          clientPhone: $('cliPhone').value,
+          clientPhone: $('cliPhone').value || (($('cliInfo').value.match(/\+?\d[\d\s.-]{7,}\d/) || [''])[0] || ''),
           projName: $('projName').value,
           contractValue: $('contractValue').value,
           total: $('dGrand').textContent
