@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { T, Icon, Panel, PanelHead, Tag, Dot, Btn } from '../components/AcosUI'
-import { ClientService, ConversationService } from '../services/supabaseClient'
+import { ClientService, ConversationService, PromptService } from '../services/supabaseClient'
 
 // Workflow definitions for Sudut Ruang (real workflows, no runtime data)
 const WORKFLOWS = [
@@ -37,6 +37,42 @@ const AutomationLog: React.FC = () => {
   const [liveLogs, setLiveLogs] = useState<LiveLog[]>([])
   const [stats, setStats] = useState({ leads: 0, convs: 0, aiConvs: 0, proposals: 0 })
   const [loading, setLoading] = useState(true)
+
+  // Prompt AI state
+  const [promptContent, setPromptContent] = useState('')
+  const [promptTitle, setPromptTitle] = useState('Prompt Utama AI')
+  const [promptLoading, setPromptLoading] = useState(true)
+  const [promptSaving, setPromptSaving] = useState(false)
+  const [promptSaved, setPromptSaved] = useState(false)
+  const [promptError, setPromptError] = useState<string | null>(null)
+
+  useEffect(() => {
+    PromptService.get('system_prompt').then((data) => {
+      if (data) {
+        setPromptContent(data.content)
+        setPromptTitle(data.title)
+      }
+      setPromptLoading(false)
+    })
+  }, [])
+
+  const savePrompt = async () => {
+    setPromptSaving(true)
+    setPromptError(null)
+    const { error } = await PromptService.save({
+      key: 'system_prompt',
+      title: promptTitle || 'Prompt Utama AI',
+      content: promptContent,
+      description: 'Prompt sistem utama yang dipakai AI untuk membalas chat',
+    })
+    setPromptSaving(false)
+    if (error) {
+      setPromptError('Gagal menyimpan. Pastikan tabel "prompts" sudah dibuat di Supabase.')
+    } else {
+      setPromptSaved(true)
+      setTimeout(() => setPromptSaved(false), 2000)
+    }
+  }
 
   useEffect(() => {
     Promise.all([
@@ -133,6 +169,48 @@ const AutomationLog: React.FC = () => {
           </Panel>
         ))}
       </div>
+
+      {/* Prompt AI Editor */}
+      <Panel style={{ marginBottom: 20 }}>
+        <PanelHead title="Prompt AI (Syifa)" sub="Prompt sistem AI · disimpan ke Supabase, dipakai n8n" icon="Sparkles"
+          right={<Tag color={T.sky}><Dot color={T.sky} pulse size={6} />system_prompt</Tag>} />
+        <div style={{ padding: 18 }}>
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: T.dim, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Judul Prompt</div>
+            <input
+              type="text"
+              value={promptTitle}
+              onChange={e => setPromptTitle(e.target.value)}
+              placeholder="Prompt Utama AI"
+              disabled={promptLoading}
+              style={{ width: '100%', padding: '10px 14px', background: T.inset, border: `1px solid ${T.line}`, borderRadius: 8, color: T.txt, fontSize: 12, outline: 'none', fontFamily: T.font }}
+            />
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: T.dim, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Isi Prompt</div>
+            <textarea
+              value={promptContent}
+              onChange={e => setPromptContent(e.target.value)}
+              placeholder={promptLoading ? 'Memuat prompt...' : 'Tulis instruksi/prompt untuk AI di sini...'}
+              disabled={promptLoading}
+              rows={12}
+              style={{ width: '100%', padding: '12px 14px', background: T.inset, border: `1px solid ${T.line}`, borderRadius: 8, color: T.txt, fontSize: 12, outline: 'none', fontFamily: T.mono, lineHeight: 1.6, resize: 'vertical', minHeight: 220 }}
+            />
+            <div style={{ fontSize: 10, color: T.dim, marginTop: 6, textAlign: 'right' }}>{promptContent.length} karakter</div>
+          </div>
+
+          {promptError && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 12, background: `${T.red}12`, border: `1px solid ${T.red}40`, borderRadius: 8, marginBottom: 14 }}>
+              <Icon name="AlertTriangle" size={15} color={T.red} />
+              <div style={{ fontSize: 11, color: T.red, lineHeight: 1.4 }}>{promptError}</div>
+            </div>
+          )}
+
+          <Btn v="primary" onClick={savePrompt} disabled={promptLoading || promptSaving} icon={promptSaved ? 'CheckCircle' : 'Save'}>
+            {promptSaving ? 'Menyimpan...' : promptSaved ? 'Tersimpan!' : 'Simpan Prompt'}
+          </Btn>
+        </div>
+      </Panel>
 
       {/* Main two-column layout */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, alignItems: 'start' }}>

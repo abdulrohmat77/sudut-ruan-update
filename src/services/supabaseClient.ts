@@ -84,6 +84,15 @@ export interface DBQuickReply {
   created_at: string
 }
 
+export interface DBPrompt {
+  key: string
+  title: string
+  content: string
+  description: string | null
+  is_active: boolean
+  updated_at: string
+}
+
 export interface DBClient {
   id: string
   name: string | null
@@ -164,6 +173,29 @@ export const ConversationService = {
       .eq('id', conversationId)
 
     if (error) console.error('mark read error:', error)
+  },
+
+  async deleteConversation(conversationId: string) {
+    // messages ikut terhapus otomatis lewat FK `on delete cascade`
+    const { error } = await supabase
+      .from('conversations')
+      .delete()
+      .eq('id', conversationId)
+
+    if (error) console.error('delete conversation error:', error)
+    return { error }
+  },
+
+  async deleteMany(conversationIds: string[]) {
+    if (conversationIds.length === 0) return { error: null }
+    // messages ikut terhapus otomatis lewat FK `on delete cascade`
+    const { error } = await supabase
+      .from('conversations')
+      .delete()
+      .in('id', conversationIds)
+
+    if (error) console.error('delete many conversations error:', error)
+    return { error }
   },
 
   // Realtime subscription
@@ -399,5 +431,43 @@ export const AIConfigService = {
       .upsert({ key, value, updated_at: new Date().toISOString() })
 
     if (error) console.error('set ai config error:', error)
+  },
+}
+
+// ============================================================
+// Prompt Service
+// ============================================================
+export const PromptService = {
+  async getAll(): Promise<DBPrompt[]> {
+    const { data, error } = await supabase
+      .from('prompts')
+      .select('*')
+      .order('title')
+
+    if (error) {
+      console.error('getAll prompts error:', error)
+      return []
+    }
+    return data || []
+  },
+
+  async get(key: string): Promise<DBPrompt | null> {
+    const { data, error } = await supabase
+      .from('prompts')
+      .select('*')
+      .eq('key', key)
+      .single()
+
+    if (error) return null
+    return data
+  },
+
+  async save(prompt: { key: string; title: string; content: string; description?: string }) {
+    const { error } = await supabase
+      .from('prompts')
+      .upsert({ ...prompt, updated_at: new Date().toISOString() })
+
+    if (error) console.error('save prompt error:', error)
+    return { error }
   },
 }

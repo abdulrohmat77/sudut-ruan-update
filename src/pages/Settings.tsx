@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+﻿import React, { useEffect, useRef, useState } from 'react'
 import { AIConfigService, supabase } from '../services/supabaseClient'
 import { authService } from '../services/auth'
 import PinLock from '../components/PinLock'
@@ -230,7 +230,7 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange, theme: propTheme, den
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: `1px solid ${T.line}`, paddingBottom: 16 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: T.txt }}>Mata uang</div>
-              <div style={{ fontSize: 11, fontWeight: 800, color: T.dim }}>IDR • Rp</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: T.dim }}>IDR â€¢ Rp</div>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: `1px solid ${T.line}`, paddingBottom: 16 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: T.txt }}>Zona waktu</div>

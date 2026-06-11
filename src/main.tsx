@@ -17,6 +17,29 @@ import { n8nService } from './services/n8nWebhookService'
   }
 })()
 
+// Set favicon dari logo Sudut Ruang (company_logo) yang tersimpan di Supabase.
+;(async () => {
+  try {
+    const logo = await AIConfigService.get('company_logo')
+    if (logo) {
+      let link = document.querySelector<HTMLLinkElement>("link[rel~='icon']")
+      if (!link) {
+        link = document.createElement('link')
+        link.rel = 'icon'
+        document.head.appendChild(link)
+      }
+      // hapus type svg agar browser pakai data URL gambar (jpeg/png)
+      link.removeAttribute('type')
+      link.href = logo
+
+      const apple = document.querySelector<HTMLLinkElement>("link[rel='apple-touch-icon']")
+      if (apple) apple.href = logo
+    }
+  } catch (err) {
+    console.warn('[boot] failed to load company_logo for favicon:', err)
+  }
+})()
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <App />

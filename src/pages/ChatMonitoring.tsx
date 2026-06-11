@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+  import React, { useState, useEffect, useRef } from 'react'
 import { DBConversation, DBMessage, ConversationService, QuickReplyService, DBQuickReply } from '../services/supabaseClient'
 import { T, Icon, Avatar, Tag, ProgBar, Btn, Dot, Panel, statusColor } from '../components/AcosUI'
 import { n8nService } from '../services/n8nWebhookService'
@@ -32,6 +32,11 @@ const ChatMonitoring: React.FC<ChatMonitoringProps> = ({
   const [showQuickReplies, setShowQuickReplies] = useState(false)
   const [loading, setLoading] = useState(true)
   const [togglingMode, setTogglingMode] = useState(false)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false)
   const [mobileView, setMobileView] = useState<MobileView>('list')
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
 
@@ -244,6 +249,63 @@ const ChatMonitoring: React.FC<ChatMonitoringProps> = ({
     setTogglingMode(false)
   }
 
+  const handleDeleteConversation = async () => {
+    if (!deleteConfirmId || deleting) return
+    setDeleting(true)
+
+    const { error } = await ConversationService.deleteConversation(deleteConfirmId)
+
+    if (!error) {
+      setConversations((prev) => prev.filter((c) => c.id !== deleteConfirmId))
+      if (selectedId === deleteConfirmId) {
+        setSelectedId(null)
+        selectedIdRef.current = null
+        setMessages([])
+        setMobileView('list')
+      }
+      setDeleteConfirmId(null)
+    }
+
+    setDeleting(false)
+  }
+
+  const toggleSelectMode = () => {
+    setSelectMode((prev) => !prev)
+    setSelectedIds(new Set())
+  }
+
+  const toggleSelectId = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0 || deleting) return
+    setDeleting(true)
+
+    const ids = Array.from(selectedIds)
+    const { error } = await ConversationService.deleteMany(ids)
+
+    if (!error) {
+      setConversations((prev) => prev.filter((c) => !selectedIds.has(c.id)))
+      if (selectedId && selectedIds.has(selectedId)) {
+        setSelectedId(null)
+        selectedIdRef.current = null
+        setMessages([])
+        setMobileView('list')
+      }
+      setSelectedIds(new Set())
+      setSelectMode(false)
+      setShowBulkConfirm(false)
+    }
+
+    setDeleting(false)
+  }
+
   const filtered = conversations
     .filter((c) => (filterSource === 'all' ? true : c.source === filterSource))
     .filter((c) => search.trim() ? (c.client_name || '').toLowerCase().includes(search.toLowerCase()) || c.id.includes(search) : true)
@@ -295,8 +357,38 @@ const ChatMonitoring: React.FC<ChatMonitoringProps> = ({
         <div style={{ padding: "16px", borderBottom: `1px solid ${T.line}` }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <span style={{ fontSize: 13, fontWeight: 800, color: T.txt }}>Percakapan</span>
-            <Tag color={T.sky}><Dot color={T.sky} pulse size={6} />{conversations.filter(c => c.status === 'active').length} online</Tag>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {!selectMode && <Tag color={T.sky}><Dot color={T.sky} pulse size={6} />{conversations.filter(c => c.status === 'active').length} online</Tag>}
+              <button
+                onClick={toggleSelectMode}
+                title={selectMode ? "Batal pilih" : "Pilih percakapan"}
+                style={{ background: selectMode ? `${T.sky}18` : "transparent", border: `1px solid ${selectMode ? T.sky : T.line}`, color: selectMode ? T.sky : T.dim, borderRadius: 7, padding: "4px 8px", cursor: "pointer", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 4, fontFamily: T.font, whiteSpace: "nowrap" }}
+              >
+                <Icon name={selectMode ? "X" : "CheckSquare"} size={12} color="currentColor" />
+                {selectMode ? "Batal" : "Pilih"}
+              </button>
+            </div>
           </div>
+
+          {selectMode && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "8px 10px", background: T.inset, border: `1px solid ${T.line}`, borderRadius: 9, marginBottom: 12 }}>
+              <button
+                onClick={() => setSelectedIds((prev) => prev.size === filtered.length ? new Set() : new Set(filtered.map((c) => c.id)))}
+                style={{ background: "transparent", border: "none", color: T.sky, fontSize: 10.5, fontWeight: 700, cursor: "pointer", fontFamily: T.font, display: "flex", alignItems: "center", gap: 5 }}
+              >
+                <Icon name={selectedIds.size === filtered.length && filtered.length > 0 ? "CheckSquare" : "Square"} size={13} color={T.sky} />
+                {selectedIds.size === filtered.length && filtered.length > 0 ? "Batal semua" : "Pilih semua"}
+              </button>
+              <button
+                onClick={() => setShowBulkConfirm(true)}
+                disabled={selectedIds.size === 0}
+                style={{ background: selectedIds.size > 0 ? T.red : T.line, border: "none", color: selectedIds.size > 0 ? "#fff" : T.dim, borderRadius: 7, padding: "5px 10px", cursor: selectedIds.size > 0 ? "pointer" : "not-allowed", fontSize: 10.5, fontWeight: 700, display: "flex", alignItems: "center", gap: 5, fontFamily: T.font }}
+              >
+                <Icon name="Trash2" size={12} color={selectedIds.size > 0 ? "#fff" : T.dim} />
+                Hapus ({selectedIds.size})
+              </button>
+            </div>
+          )}
           <div style={{ display: "flex", alignItems: "center", gap: 8, background: T.inset, border: `1px solid ${T.line}`, borderRadius: 9, padding: "8px 12px", marginBottom: 12 }}>
             <Icon name="Search" size={15} color={T.dim} />
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari nama / nomor..." style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: T.txt, fontSize: 11, fontFamily: T.font }} />
@@ -319,8 +411,12 @@ const ChatMonitoring: React.FC<ChatMonitoringProps> = ({
           ) : (
             filtered.map((conv) => {
               const isSelected = selectedId === conv.id
+              const isChecked = selectedIds.has(conv.id)
               return (
-                <div key={conv.id} onClick={() => handleSelectConversation(conv.id)} className="ac-row" style={{ display: "flex", gap: 11, padding: "12px 16px", cursor: "pointer", background: isSelected ? "rgba(74,179,216,0.06)" : "transparent", borderLeft: `3px solid ${isSelected ? T.sky : "transparent"}`, borderBottom: `1px solid ${T.line}` }}>
+                <div key={conv.id} onClick={() => selectMode ? toggleSelectId(conv.id) : handleSelectConversation(conv.id)} className="ac-row" style={{ display: "flex", alignItems: "center", gap: 11, padding: "12px 16px", cursor: "pointer", background: selectMode && isChecked ? "rgba(248,113,113,0.08)" : isSelected ? "rgba(74,179,216,0.06)" : "transparent", borderLeft: `3px solid ${selectMode && isChecked ? T.red : isSelected ? T.sky : "transparent"}`, borderBottom: `1px solid ${T.line}` }}>
+                  {selectMode && (
+                    <Icon name={isChecked ? "CheckSquare" : "Square"} size={18} color={isChecked ? T.red : T.dim} style={{ flexShrink: 0 }} />
+                  )}
                   <div style={{ position: "relative" }}>
                     <Avatar initials={(conv.client_name || '?').charAt(0).toUpperCase()} color={statusColor[conv.status] || T.sky} size={36} />
                     <span style={{ position: "absolute", bottom: -2, right: -2, width: 14, height: 14, borderRadius: "50%", background: conv.source === 'whatsapp' ? T.green : T.red, border: `2px solid ${T.panel}`, display: "grid", placeItems: "center", fontSize: 7, fontWeight: 800, color: "#fff" }}>
@@ -363,6 +459,15 @@ const ChatMonitoring: React.FC<ChatMonitoringProps> = ({
               <Btn v={selectedConv.mode === 'ai' ? 'primary' : 'ghost'} size="sm" icon={selectedConv.mode === 'ai' ? "UserSquare" : "Bot"} onClick={handleToggleMode} disabled={togglingMode}>
                 {selectedConv.mode === 'ai' ? 'Ambil Alih' : 'Kembali ke AI'}
               </Btn>
+              <button
+                onClick={() => setDeleteConfirmId(selectedConv.id)}
+                title="Hapus percakapan"
+                style={{ background: "transparent", border: `1px solid ${T.line}`, width: 32, height: 32, borderRadius: 8, cursor: "pointer", display: "grid", placeItems: "center", color: T.dim, flexShrink: 0, transition: "all 0.2s" }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = T.red; e.currentTarget.style.borderColor = `${T.red}55` }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = T.dim; e.currentTarget.style.borderColor = T.line }}
+              >
+                <Icon name="Trash2" size={15} color="currentColor" />
+              </button>
               <div className="xl:hidden" onClick={() => setMobileView('panel')} style={{ cursor: "pointer", marginLeft: 8 }}><Icon name="Info" size={18} color={T.dim} /></div>
             </div>
 
@@ -558,6 +663,54 @@ const ChatMonitoring: React.FC<ChatMonitoringProps> = ({
           )}
         </div>
       </div>
+
+      {/* ── Delete Confirmation Modal ─────────────────────────── */}
+      {deleteConfirmId && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: T.panel, padding: 32, borderRadius: 20, width: "100%", maxWidth: 400, border: `1px solid ${T.line}`, boxShadow: "0 20px 60px rgba(0,0,0,0.3)", textAlign: "center" }}>
+            <div style={{ width: 64, height: 64, borderRadius: "50%", background: `${T.red}20`, color: T.red, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+              <Icon name="Trash2" size={30} color={T.red} />
+            </div>
+            <h3 style={{ fontSize: 19, fontWeight: 800, margin: "0 0 12px", color: T.txt }}>Hapus Percakapan?</h3>
+            <p style={{ fontSize: 13, color: T.dim, margin: "0 0 24px", lineHeight: 1.5 }}>
+              Seluruh pesan dalam percakapan ini akan ikut terhapus permanen dan tidak dapat dikembalikan.
+            </p>
+            <div style={{ display: "flex", gap: 12 }}>
+              <button onClick={() => setDeleteConfirmId(null)} disabled={deleting} style={{ flex: 1, padding: 12, borderRadius: 12, border: `1px solid ${T.line}`, background: "transparent", color: T.txt, fontWeight: 700, fontSize: 13, cursor: deleting ? "not-allowed" : "pointer", fontFamily: T.font }}>
+                Batal
+              </button>
+              <button onClick={handleDeleteConversation} disabled={deleting} style={{ flex: 1, padding: 12, borderRadius: 12, border: "none", background: T.red, color: "#fff", fontWeight: 700, fontSize: 13, cursor: deleting ? "not-allowed" : "pointer", opacity: deleting ? 0.7 : 1, fontFamily: T.font, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                {deleting ? <Dot color="#fff" pulse size={6} /> : <Icon name="Trash2" size={14} color="#fff" />}
+                {deleting ? "Menghapus..." : "Ya, Hapus"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Bulk Delete Confirmation Modal ────────────────────── */}
+      {showBulkConfirm && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: T.panel, padding: 32, borderRadius: 20, width: "100%", maxWidth: 400, border: `1px solid ${T.line}`, boxShadow: "0 20px 60px rgba(0,0,0,0.3)", textAlign: "center" }}>
+            <div style={{ width: 64, height: 64, borderRadius: "50%", background: `${T.red}20`, color: T.red, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+              <Icon name="Trash2" size={30} color={T.red} />
+            </div>
+            <h3 style={{ fontSize: 19, fontWeight: 800, margin: "0 0 12px", color: T.txt }}>Hapus {selectedIds.size} Percakapan?</h3>
+            <p style={{ fontSize: 13, color: T.dim, margin: "0 0 24px", lineHeight: 1.5 }}>
+              Seluruh pesan dari {selectedIds.size} percakapan terpilih akan ikut terhapus permanen dan tidak dapat dikembalikan.
+            </p>
+            <div style={{ display: "flex", gap: 12 }}>
+              <button onClick={() => setShowBulkConfirm(false)} disabled={deleting} style={{ flex: 1, padding: 12, borderRadius: 12, border: `1px solid ${T.line}`, background: "transparent", color: T.txt, fontWeight: 700, fontSize: 13, cursor: deleting ? "not-allowed" : "pointer", fontFamily: T.font }}>
+                Batal
+              </button>
+              <button onClick={handleBulkDelete} disabled={deleting} style={{ flex: 1, padding: 12, borderRadius: 12, border: "none", background: T.red, color: "#fff", fontWeight: 700, fontSize: 13, cursor: deleting ? "not-allowed" : "pointer", opacity: deleting ? 0.7 : 1, fontFamily: T.font, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                {deleting ? <Dot color="#fff" pulse size={6} /> : <Icon name="Trash2" size={14} color="#fff" />}
+                {deleting ? "Menghapus..." : "Ya, Hapus Semua"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

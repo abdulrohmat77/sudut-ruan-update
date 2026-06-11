@@ -25,20 +25,24 @@ const InvoiceBuilder = ({ onBack }: Props) => {
           const res = await fetch(pdfBase64)
           const blob = await res.blob()
 
-          // 2. Upload to Supabase Storage
+          // 2. Upload ke Cloudinary (sebagai raw karena PDF)
           const fileName = `INV-${Date.now()}-${invoiceData.invNo.replace(/\//g, '-')}.pdf`
-          const { error: uploadError } = await supabase.storage
-            .from('documents')
-            .upload(`invoices/${fileName}`, blob, { contentType: 'application/pdf', upsert: true })
+          const formData = new FormData()
+          formData.append('file', blob)
+          formData.append('upload_preset', 'dashboard_uploads')
+          formData.append('public_id', `invoices/${fileName}`)
 
-          if (uploadError) throw new Error('Gagal upload PDF ke Supabase Storage: ' + uploadError.message)
+          const cloudRes = await fetch('https://api.cloudinary.com/v1_1/dtfmjwofq/raw/upload', {
+            method: 'POST',
+            body: formData,
+          })
+          const cloudData = await cloudRes.json()
 
-          // 3. Get Public URL
-          const { data: publicUrlData } = supabase.storage
-            .from('documents')
-            .getPublicUrl(`invoices/${fileName}`)
-          
-          const fileUrl = publicUrlData.publicUrl
+          if (!cloudData.secure_url) {
+            throw new Error('Gagal upload PDF ke Cloudinary: ' + (cloudData.error?.message || 'unknown error'))
+          }
+
+          const fileUrl = cloudData.secure_url
 
           // 4. Insert to Documents Table
           const { error: dbError } = await DocumentService.insert({

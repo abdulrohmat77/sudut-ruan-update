@@ -124,6 +124,18 @@ create table if not exists public.ai_config (
 );
 
 -- ============================================================
+-- 8. PROMPTS (system / AI prompt yang bisa diedit dari dashboard)
+-- ============================================================
+create table if not exists public.prompts (
+  key text primary key,            -- identifier unik (e.g. system_prompt)
+  title text not null,             -- nama tampilan di dashboard
+  content text not null default '',-- isi prompt
+  description text,                -- keterangan singkat
+  is_active boolean default true,
+  updated_at timestamptz default now()
+);
+
+-- ============================================================
 -- SEED DATA — Templates default
 -- ============================================================
 insert into public.templates (type, name, content, variables, is_active) values
@@ -228,6 +240,18 @@ insert into public.ai_config (key, value, description) values
 on conflict (key) do update set value = excluded.value;
 
 -- ============================================================
+-- SEED DATA — Prompt default
+-- ============================================================
+insert into public.prompts (key, title, content, description) values
+(
+  'system_prompt',
+  'Prompt Utama AI',
+  'Kamu adalah asisten AI Sudut Ruang, jasa desain arsitektur & interior. Balas dengan ramah, profesional, dan to the point dalam Bahasa Indonesia. Bantu calon klien soal estimasi harga, proposal, dan pertanyaan proyek.',
+  'Prompt sistem utama yang dipakai AI untuk membalas chat'
+)
+on conflict (key) do nothing;
+
+-- ============================================================
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================================
 -- ⚠️  SECURITY NOTE
@@ -248,6 +272,7 @@ alter table public.clients enable row level security;
 alter table public.templates enable row level security;
 alter table public.quick_replies enable row level security;
 alter table public.ai_config enable row level security;
+alter table public.prompts enable row level security;
 
 -- Helper: re-runnable policy creation
 do $$
@@ -255,7 +280,7 @@ declare
   t text;
 begin
   foreach t in array array[
-    'conversations','messages','documents','clients','templates','quick_replies','ai_config'
+    'conversations','messages','documents','clients','templates','quick_replies','ai_config','prompts'
   ]
   loop
     -- public read
