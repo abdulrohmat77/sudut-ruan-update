@@ -12,6 +12,7 @@ import {
   Wallet,
   FolderKanban,
   Bot,
+  Sparkles,
   ChevronsLeft,
   ChevronsRight
 } from 'lucide-react'
@@ -54,6 +55,7 @@ const sections: MenuSection[] = [
     title: 'SALES & KLIEN',
     items: [
       { id: 'pipeline', icon: <Users size={20} />, label: 'CRM & Leads' },
+      { id: 'customer-crm', icon: <Sparkles size={20} />, label: 'Customer CRM (AI)' },
       { id: 'estimator', icon: <Calculator size={20} />, label: 'AI Estimator' },
     ],
   },

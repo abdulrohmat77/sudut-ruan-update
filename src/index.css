@@ -197,3 +197,39 @@
     height: 70vh !important;
   }
 }
+
+/* Mobile: force every inner grid inside the builder to stack into 1 column
+   so fields never overflow horizontally on phones. */
+@media (max-width: 640px) {
+  .doc-builder-grid {
+    gap: 14px;
+  }
+  .doc-builder-grid [style*="grid-template-columns"] {
+    grid-template-columns: 1fr !important;
+  }
+  .doc-builder-grid input,
+  .doc-builder-grid select,
+  .doc-builder-grid textarea {
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+  }
+}
+
+/* ── AI Summary CRM (Dashboard) — master/detail split ────────── */
+.ai-crm-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  align-items: stretch;
+}
+@media (max-width: 900px) {
+  .ai-crm-grid {
+    grid-template-columns: 1fr;
+  }
+  .ai-crm-grid > div:first-child {
+    border-right: none !important;
+    border-bottom: 1px solid var(--ac-line, rgba(255,255,255,0.08));
+    max-height: 320px;
+    overflow-y: auto;
+  }
+}

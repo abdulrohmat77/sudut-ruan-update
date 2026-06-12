@@ -406,6 +406,66 @@ export const ClientService = {
 }
 
 // ============================================================
+// AI Summary Service (hasil rangkuman percakapan oleh AI Analyst)
+// Disimpan permanen di tabel `ai_summaries` (1 baris per percakapan).
+// ============================================================
+export interface DBAiSummary {
+  id?: string
+  conversation_id: string
+  tanggal: string | null
+  nama: string | null
+  phone: string | null
+  channel: string | null
+  project_type: string | null
+  lokasi: string | null
+  luas_m2: string | null
+  estimasi_value: string | null
+  status: string | null
+  design_stage: string | null
+  progress_pct: string | null
+  ringkasan: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+export const AiSummaryService = {
+  async getAll(): Promise<DBAiSummary[]> {
+    const { data, error } = await supabase
+      .from('ai_summaries')
+      .select('*')
+      .order('updated_at', { ascending: false })
+
+    if (error) {
+      console.error('getAll ai_summaries error:', error)
+      return []
+    }
+    return data || []
+  },
+
+  async upsert(row: Partial<DBAiSummary> & { conversation_id: string }) {
+    const { error } = await supabase
+      .from('ai_summaries')
+      .upsert(
+        { ...row, updated_at: new Date().toISOString() },
+        { onConflict: 'conversation_id' },
+      )
+
+    if (error) console.error('upsert ai_summary error:', error)
+    return { error }
+  },
+
+  async delete(conversationId: string) {
+    const { error } = await supabase
+      .from('ai_summaries')
+      .delete()
+      .eq('conversation_id', conversationId)
+
+    if (error) console.error('delete ai_summary error:', error)
+    return { error }
+  },
+}
+
+// ============================================================
 // AI Config Service
 // ============================================================
 export const AIConfigService = {

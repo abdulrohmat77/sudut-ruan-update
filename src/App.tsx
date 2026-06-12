@@ -18,6 +18,7 @@ import LoginPage from './pages/LoginPage'
 import InvoiceBuilder from './pages/InvoiceBuilder'
 import SpkBuilder from './pages/SpkBuilder'
 import ProposalBuilder from './pages/ProposalBuilder'
+import CustomerCRM from './pages/CustomerCRM'
 import { SpkPrefill, InvoicePrefill } from './services/spkData'
 import { supabase, AIConfigService } from './services/supabaseClient'
 import { authService } from './services/auth'
@@ -28,6 +29,7 @@ export type PageType =
   | 'dashboard'
   | 'chat-monitoring'
   | 'pipeline'
+  | 'customer-crm'
   | 'estimator'
   | 'documents'
   | 'finance'
@@ -44,6 +46,7 @@ const pageTitles: Record<PageType, string> = {
   dashboard: 'Command Center',
   'chat-monitoring': 'Active Chats',
   pipeline: 'Client CRM',
+  'customer-crm': 'Customer CRM',
   estimator: 'AI Estimator',
   documents: 'Dokumen & SPK',
   finance: 'Finance',
@@ -281,6 +284,8 @@ function App() {
         )
       case 'pipeline':
         return <Pipeline />
+      case 'customer-crm':
+        return <CustomerCRM onNavigate={setCurrentPage} />
       case 'estimator':
         return <Estimator onCreateSpk={(p) => { setSpkPrefill(p); setCurrentPage('spk-builder') }} />
       case 'documents':

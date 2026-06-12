@@ -1,5 +1,5 @@
   import React, { useState, useEffect, useRef } from 'react'
-import { DBConversation, DBMessage, ConversationService, QuickReplyService, DBQuickReply } from '../services/supabaseClient'
+import { DBConversation, DBMessage, ConversationService, QuickReplyService, DBQuickReply, AiSummaryService } from '../services/supabaseClient'
 import { T, Icon, Avatar, Tag, ProgBar, Btn, Dot, Panel, statusColor } from '../components/AcosUI'
 import { n8nService } from '../services/n8nWebhookService'
 import type { ConversationAnalysis } from '../services/n8nWebhookService'
@@ -122,6 +122,23 @@ const ChatMonitoring: React.FC<ChatMonitoringProps> = ({
       ConversationService.upsertConversation({
         id: selectedConv.id,
         metadata: { ...(selectedConv.metadata || {}), aiAnalysis: data },
+      })
+      // Simpan permanen ke tabel ai_summaries (1 baris per percakapan).
+      const toStr = (v: unknown) => (v === undefined || v === null || v === '' ? null : String(v))
+      AiSummaryService.upsert({
+        conversation_id: selectedConv.id,
+        tanggal: toStr(data.tanggal) || new Date().toISOString().slice(0, 10),
+        nama: toStr(data.nama) || selectedConv.client_name || null,
+        phone: toStr(data.phone) || meta.phoneNumber || selectedConv.id,
+        channel: toStr(data.channel) || selectedConv.source || null,
+        project_type: toStr(data.project_type),
+        lokasi: toStr(data.lokasi),
+        luas_m2: toStr(data.luas_m2),
+        estimasi_value: toStr(data.estimasi_value),
+        status: toStr(data.status),
+        design_stage: toStr(data.design_stage),
+        progress_pct: toStr(data.progress_pct),
+        ringkasan: toStr(data.ringkasan),
       })
     } else {
       setAnalysisErr(res.error || 'Gagal menganalisa percakapan.')
