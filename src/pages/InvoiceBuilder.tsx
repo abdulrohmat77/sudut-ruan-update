@@ -208,7 +208,7 @@ const InvoiceBuilder = ({ onBack }: Props) => {
           </div>
         )}
         <iframe 
-          src="/template_dokument/Invoice _ Tagihan Template.html" 
+          src="/template_dokument/Invoice _ Tagihan Template.html?v=20260612-4" 
           style={{ width: '100%', height: '100%', border: 'none', background: 'white' }}
           onLoad={() => setLoading(false)}
           title="Invoice Builder"

@@ -117,9 +117,9 @@
 
   /* Header */
   .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 14mm; padding-bottom: 5mm; border-bottom: 1px solid var(--hair); }
-  .brand { display: flex; align-items: center; gap: 10px; }
-  .brand .logo-slot { width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .brand .logo-slot img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand .logo-slot { height: 48px; width: auto; max-width: 210px; display: flex; align-items: center; justify-content: flex-start; flex-shrink: 0; }
+  .brand .logo-slot img { height: 100%; width: auto; max-width: 210px; object-fit: contain; }
   .brand-text .name { font-weight: 800; font-size: 14px; color: var(--navy); letter-spacing: -0.3px; line-height: 1.1; }
   .brand-text .tag { font-size: 7px; font-weight: 600; letter-spacing: 0.22em; color: var(--bright); margin-top: 3px; text-transform: uppercase; }
   .brand-text .legal { font-size: 7.5px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
@@ -269,31 +269,7 @@
     <h2>Invoice Builder</h2>
     <div class="tag">Sudut Ruang Arsitek · v1.1</div>
 
-    <!-- LOGOS -->
-    <div class="group">
-      <div class="group-title"><span class="num">01</span> Logo</div>
-
-      <div class="logo-uploader">
-        <div class="preview" id="prev-sra"><span class="placeholder">Sudut<br>Ruang</span></div>
-        <div class="info"><div class="lbl">Logo Sudut Ruang</div><div class="sub">Header invoice</div></div>
-        <label class="file-btn">Upload<input type="file" accept="image/*" onchange="uploadLogo(event,'sra')"></label>
-        <button class="clear-logo" onclick="clearLogo('sra')" title="Hapus">✕</button>
-      </div>
-
-      <div class="logo-uploader">
-        <div class="preview" id="prev-mandiri"><span class="placeholder">Mandiri</span></div>
-        <div class="info"><div class="lbl">Logo Mandiri</div><div class="sub">Bank section</div></div>
-        <label class="file-btn">Upload<input type="file" accept="image/*" onchange="uploadLogo(event,'mandiri')"></label>
-        <button class="clear-logo" onclick="clearLogo('mandiri')" title="Hapus">✕</button>
-      </div>
-
-      <div class="logo-uploader">
-        <div class="preview" id="prev-bca"><span class="placeholder">BCA</span></div>
-        <div class="info"><div class="lbl">Logo BCA</div><div class="sub">Bank section</div></div>
-        <label class="file-btn">Upload<input type="file" accept="image/*" onchange="uploadLogo(event,'bca')"></label>
-        <button class="clear-logo" onclick="clearLogo('bca')" title="Hapus">✕</button>
-      </div>
-    </div>
+    <!-- LOGOS — dikunci permanen (tidak bisa diubah). Lihat header & bank section. -->
 
     <!-- INVOICE INFO -->
     <div class="group">
@@ -406,12 +382,7 @@ Telp: +62 123-4567</textarea></div>
       <!-- Header -->
       <div class="header">
         <div class="brand">
-          <div class="logo-slot" id="hdrLogo"></div>
-          <div class="brand-text">
-            <div class="name">Sudut Ruang Arsitek</div>
-            <div class="tag">Designing Corners · Defining Spaces</div>
-            <div class="legal">CV. Sudut Ruang Archineering</div>
-          </div>
+          <div class="logo-slot" id="hdrLogo"><img src="/logo-main.png" alt="Sudut Ruang Arsitek"></div>
         </div>
         <div class="doc-title">
           <div class="eyebrow">Tagihan Pembayaran</div>
@@ -489,7 +460,7 @@ Wonokromo, Surabaya 60245 — Jawa Timur
         <div class="pay-box">
           <div class="h">Pembayaran via Transfer Bank</div>
           <div class="bank">
-            <div class="bank-logo" id="bankMandiriLogo"><span class="placeholder">MANDIRI</span></div>
+            <div class="bank-logo" id="bankMandiriLogo"><img src="/mandiri-logo.png" alt="Mandiri"></div>
             <div class="bank-info">
               <div class="bname">Bank Mandiri</div>
               <div class="bnum">127-00-1143622-5</div>
@@ -497,7 +468,7 @@ Wonokromo, Surabaya 60245 — Jawa Timur
             </div>
           </div>
           <div class="bank">
-            <div class="bank-logo" id="bankBcaLogo"><span class="placeholder">BCA</span></div>
+            <div class="bank-logo" id="bankBcaLogo"><img src="/bca-logo.png" alt="BCA"></div>
             <div class="bank-info">
               <div class="bname">Bank Central Asia (BCA)</div>
               <div class="bnum">130-024-2622</div>
@@ -660,34 +631,8 @@ Wonokromo, Surabaya 60245 — Jawa Timur
   }
 
   function renderLogos() {
-    const update = (slotId, key, fallback) => {
-      const slot = $(slotId);
-      if (state.logos[key]) {
-        slot.innerHTML = `<img src="${state.logos[key]}" alt="${key}">`;
-      } else {
-        slot.innerHTML = `<span class="placeholder">${fallback}</span>`;
-      }
-    };
-    update('prev-sra', 'sra', 'Sudut<br>Ruang');
-    update('prev-mandiri', 'mandiri', 'Mandiri');
-    update('prev-bca', 'bca', 'BCA');
-
-    const hdr = $('hdrLogo');
-    if (state.logos.sra) {
-      hdr.innerHTML = `<img src="${state.logos.sra}" alt="Sudut Ruang">`;
-    } else {
-      hdr.innerHTML = `<svg viewBox="0 0 100 100" style="width:100%;height:100%"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5EC2E4"/><stop offset="1" stop-color="#043666"/></linearGradient></defs><rect x="10" y="10" width="80" height="80" rx="6" fill="url(#g)"/><text x="50" y="65" text-anchor="middle" font-family="Montserrat" font-size="44" font-weight="800" fill="white">R</text></svg>`;
-    }
-
-    const mLogo = $('bankMandiriLogo');
-    mLogo.innerHTML = state.logos.mandiri
-      ? `<img src="${state.logos.mandiri}" alt="Mandiri">`
-      : '<span class="placeholder">MANDIRI</span>';
-
-    const bLogo = $('bankBcaLogo');
-    bLogo.innerHTML = state.logos.bca
-      ? `<img src="${state.logos.bca}" alt="BCA">`
-      : '<span class="placeholder">BCA</span>';
+    // Logo dikunci permanen langsung di HTML (header & bank section).
+    // Tidak ada lagi upload/preview — fungsi ini sengaja dikosongkan.
   }
 
   // =============== TERMIJN BUILDER ===============
@@ -950,18 +895,24 @@ Wonokromo, Surabaya 60245 — Jawa Timur
 
     try {
       const element = document.getElementById('page');
-      
+
       const originalMinHeight = element.style.minHeight;
       const originalBoxShadow = element.style.boxShadow;
-      element.style.minHeight = '296mm';
+      // Biar tinggi halaman = tinggi konten → SELALU satu halaman
+      // (kalau konten panjang, kertasnya yang memanjang, bukan pindah halaman).
+      element.style.minHeight = 'auto';
       element.style.boxShadow = 'none';
+
+      const pageWidthMm = 210;
+      const pxToMm = 25.4 / 96;
+      const contentHeightMm = Math.ceil(element.offsetHeight * pxToMm) + 4;
 
       const opt = {
         margin:       0,
         filename:     `Invoice-${$('invNo').value || 'draft'}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { scale: 2, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0 },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        jsPDF:        { unit: 'mm', format: [pageWidthMm, contentHeightMm], orientation: 'portrait' },
         pagebreak:    { mode: 'avoid-all' }
       };
       
