@@ -28,7 +28,13 @@ export default {
         'surface-bright': 'var(--bg-surface-bright, #0b3460)',
         'surface-dim': 'var(--bg-surface-dim, #06223e)',
         'surface-variant': 'var(--bg-surface-variant, #022747)',
-        
+
+        // ── Surface container scale (MD3-style elevation) ──
+        'surface-container-lowest': 'var(--bg-surface-container-lowest, #06223e)',
+        'surface-container-low': 'var(--bg-surface-container-low, #082a4b)',
+        'surface-container': 'var(--bg-surface-container, #0b3460)',
+        'surface-container-high': 'var(--bg-surface-container-high, #0e3d6e)',
+
         'on-background': 'var(--text-on-background, #EAF4FB)',
         'on-surface': 'var(--text-on-surface, #EAF4FB)',
         'on-surface-variant': 'var(--text-on-surface-variant, #9DBAD2)',
@@ -41,7 +47,17 @@ export default {
         'on-primary': 'var(--text-on-primary, #04203a)',
         'primary-container': 'var(--bg-primary-container, rgba(74,179,216,0.15))',
         'on-primary-container': 'var(--text-on-primary-container, #5FD4FF)',
-        
+
+        // ── Secondary (emphasis / result highlight) ──
+        secondary: 'var(--color-secondary, #5FD4FF)',
+        'on-secondary': 'var(--text-on-secondary, #04203a)',
+        'secondary-container': 'var(--bg-secondary-container, #045D93)',
+        'on-secondary-container': 'var(--text-on-secondary-container, #EAF4FB)',
+
+        // ── Tertiary fixed (chips / badges) ──
+        'tertiary-fixed': 'var(--bg-tertiary-fixed, rgba(74,179,216,0.15))',
+        'on-tertiary-fixed': 'var(--text-on-tertiary-fixed, #5FD4FF)',
+
         error: 'var(--color-error, #FF4D4D)',
         'on-error': 'var(--text-on-error, #FFFFFF)',
         'error-container': 'var(--bg-error-container, rgba(255,77,77,0.15))',
@@ -67,6 +83,16 @@ export default {
       fontFamily: {
         sans: ['DM Sans', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
+        'serif-display': ['"DM Serif Display"', 'Georgia', 'serif'],
+        'headline-sm': ['DM Sans', 'system-ui', 'sans-serif'],
+        'mono-label': ['JetBrains Mono', 'monospace'],
+      },
+      fontSize: {
+        'display-lg': ['30px', { lineHeight: '1.15', fontWeight: '700' }],
+        'headline-sm': ['18px', { lineHeight: '1.3' }],
+        'body-md': ['14px', { lineHeight: '1.5' }],
+        'label-caps': ['11px', { lineHeight: '1.4', letterSpacing: '0.06em' }],
+        'mono-label': ['13px', { lineHeight: '1.4' }],
       },
       boxShadow: {
         soft: '0 1px 3px rgba(0,0,0,0.2), 0 4px 16px rgba(0,0,0,0.1)',

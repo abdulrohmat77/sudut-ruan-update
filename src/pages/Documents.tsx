@@ -198,7 +198,7 @@ const Documents = ({ onNavigate }: Props) => {
             </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <button onClick={() => { setAlertModal({ title: 'Segera Hadir', message: 'Template belum tersedia.', type: 'info' }); setShowCreateModal(false) }} style={{ padding: 16, background: T.inset, border: `1px solid ${T.line}`, borderRadius: 12, display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', textAlign: 'left', color: T.txt, transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.borderColor = T.sky} onMouseLeave={e => e.currentTarget.style.borderColor = T.line}>
+              <button onClick={() => { if(onNavigate) onNavigate('proposal-builder'); setShowCreateModal(false) }} style={{ padding: 16, background: T.inset, border: `1px solid ${T.line}`, borderRadius: 12, display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', textAlign: 'left', color: T.txt, transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.borderColor = T.sky} onMouseLeave={e => e.currentTarget.style.borderColor = T.line}>
                 <div style={{ padding: 12, background: `${T.sky}20`, color: T.sky, borderRadius: 10 }}><FileText size={24} /></div>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 14 }}>Proposal Penawaran</div>
@@ -206,7 +206,7 @@ const Documents = ({ onNavigate }: Props) => {
                 </div>
               </button>
 
-              <button onClick={() => { setAlertModal({ title: 'Segera Hadir', message: 'Template belum tersedia.', type: 'info' }); setShowCreateModal(false) }} style={{ padding: 16, background: T.inset, border: `1px solid ${T.line}`, borderRadius: 12, display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', textAlign: 'left', color: T.txt, transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.borderColor = T.sky} onMouseLeave={e => e.currentTarget.style.borderColor = T.line}>
+              <button onClick={() => { if(onNavigate) onNavigate('spk-builder'); setShowCreateModal(false) }} style={{ padding: 16, background: T.inset, border: `1px solid ${T.line}`, borderRadius: 12, display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', textAlign: 'left', color: T.txt, transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.borderColor = T.sky} onMouseLeave={e => e.currentTarget.style.borderColor = T.line}>
                 <div style={{ padding: 12, background: `${T.green}20`, color: T.green, borderRadius: 10 }}><FileSignature size={24} /></div>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 14 }}>Surat Perintah Kerja (SPK)</div>

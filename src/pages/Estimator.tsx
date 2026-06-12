@@ -12,6 +12,7 @@ import { AIConfigService, ClientService, DocumentService } from '../services/sup
 import { n8nService } from '../services/n8nWebhookService'
 import ProposalPreviewModal from '../components/ProposalPreviewModal'
 import { ProposalData, defaultTimeline } from '../services/proposalTemplate'
+import { SpkPrefill } from '../services/spkData'
 
 interface ImageEditorProps {
   label: string
@@ -24,7 +25,7 @@ interface ImageEditorProps {
 const ImageEditor: React.FC<ImageEditorProps> = ({ label, items, onUpload, onCaption, onRemove }) => (
   <div>
     <div className="flex items-center justify-between mb-2">
-      <label className="text-[11px] font-semibold text-outline uppercase tracking-wide">{label}</label>
+      <label className="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wide">{label}</label>
       <label className="py-1.5 px-3 border border-outline-variant rounded-lg text-[12px] font-bold hover:bg-surface-container cursor-pointer flex items-center gap-xs">
         <span className="material-symbols-outlined text-[16px]">add_photo_alternate</span>
         Tambah Foto
@@ -32,7 +33,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ label, items, onUpload, onCap
       </label>
     </div>
     {items.length === 0 ? (
-      <p className="text-[12px] text-outline">Belum ada foto. Maks 12 foto, dikompres otomatis.</p>
+      <p className="text-[12px] text-on-surface-variant">Belum ada foto. Maks 12 foto, dikompres otomatis.</p>
     ) : (
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-sm">
         {items.map((img, i) => (
@@ -61,7 +62,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ label, items, onUpload, onCap
   </div>
 )
 
-const Estimator: React.FC = () => {
+const Estimator: React.FC<{ onCreateSpk?: (prefill: SpkPrefill) => void }> = ({ onCreateSpk }) => {
   // Step 1: RAB Konstruksi
   const [constructionId, setConstructionId] = useState(constructionRates[1].id) // default Rumah Standar
   const [area, setArea] = useState('100')
@@ -488,7 +489,7 @@ Mau kita buatkan proposal lengkap?`
       <div className="bg-surface border border-outline-variant rounded-2xl p-md">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-sm">
           <div>
-            <label className="text-[11px] font-semibold text-outline uppercase tracking-wide block mb-2">
+            <label className="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wide block mb-2">
               Nama Klien (opsional)
             </label>
             <input
@@ -500,7 +501,7 @@ Mau kita buatkan proposal lengkap?`
             />
           </div>
           <div>
-            <label className="text-[11px] font-semibold text-outline uppercase tracking-wide block mb-2">
+            <label className="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wide block mb-2">
               Nomor WhatsApp (opsional)
             </label>
             <input
@@ -512,7 +513,7 @@ Mau kita buatkan proposal lengkap?`
             />
           </div>
           <div>
-            <label className="text-[11px] font-semibold text-outline uppercase tracking-wide block mb-2">
+            <label className="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wide block mb-2">
               Nama Proyek (opsional)
             </label>
             <input
@@ -535,13 +536,13 @@ Mau kita buatkan proposal lengkap?`
             </div>
             <div>
               <h2 className="font-headline-sm text-headline-sm font-bold">RAB Konstruksi</h2>
-              <p className="text-label-caps text-outline">Estimasi biaya pembangunan</p>
+              <p className="text-label-caps text-on-surface-variant">Estimasi biaya pembangunan</p>
             </div>
           </div>
 
           <div className="space-y-md">
             <div>
-              <label className="text-label-caps text-outline uppercase block mb-2">
+              <label className="text-label-caps text-on-surface-variant uppercase block mb-2">
                 Tipe & Kelas Bangunan
               </label>
               <select
@@ -560,7 +561,7 @@ Mau kita buatkan proposal lengkap?`
                 ))}
               </select>
               {selectedConstruction && (
-                <p className="text-label-caps text-outline mt-2">
+                <p className="text-label-caps text-on-surface-variant mt-2">
                   ℹ️ {selectedConstruction.specification}
                   {selectedConstruction.notes && ` • ${selectedConstruction.notes}`}
                 </p>
@@ -568,7 +569,7 @@ Mau kita buatkan proposal lengkap?`
             </div>
 
             <div>
-              <label className="text-label-caps text-outline uppercase block mb-2">
+              <label className="text-label-caps text-on-surface-variant uppercase block mb-2">
                 Luas Area
               </label>
               <div className="relative">
@@ -578,19 +579,19 @@ Mau kita buatkan proposal lengkap?`
                   onChange={(e) => setArea(e.target.value)}
                   className="w-full px-md py-3 pr-12 bg-surface-container-low border-none rounded-lg text-body-md focus:ring-2 focus:ring-secondary outline-none"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-outline">m²</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant">m²</span>
               </div>
             </div>
 
             {/* Hasil RAB */}
             {rab && (
               <div className="bg-surface-container rounded-lg p-md border border-outline-variant">
-                <div className="text-label-caps text-outline uppercase mb-sm">
+                <div className="text-label-caps text-on-surface-variant uppercase mb-sm">
                   Estimasi RAB Konstruksi
                 </div>
                 <div className="grid grid-cols-3 gap-2 mb-sm">
                   <div>
-                    <div className="text-label-caps text-outline">Min</div>
+                    <div className="text-label-caps text-on-surface-variant">Min</div>
                     <div className="font-mono-label text-mono-label font-bold text-on-surface-variant">
                       {formatIDRShort(rab.rabMin)}
                     </div>
@@ -602,13 +603,13 @@ Mau kita buatkan proposal lengkap?`
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-label-caps text-outline">Max</div>
+                    <div className="text-label-caps text-on-surface-variant">Max</div>
                     <div className="font-mono-label text-mono-label font-bold text-on-surface-variant">
                       {formatIDRShort(rab.rabMax)}
                     </div>
                   </div>
                 </div>
-                <div className="text-label-caps text-outline pt-2 border-t border-outline-variant">
+                <div className="text-label-caps text-on-surface-variant pt-2 border-t border-outline-variant">
                   📐 {rab.area}m² × {formatIDRShort(rab.pricePerSqmMin)}–{formatIDRShort(rab.pricePerSqmMax)}/m²
                 </div>
               </div>
@@ -624,13 +625,13 @@ Mau kita buatkan proposal lengkap?`
             </div>
             <div>
               <h2 className="font-headline-sm text-headline-sm font-bold">Fee Jasa Desain</h2>
-              <p className="text-label-caps text-outline">Tagihan untuk klien</p>
+              <p className="text-label-caps text-on-surface-variant">Tagihan untuk klien</p>
             </div>
           </div>
 
           <div className="space-y-md">
             <div>
-              <label className="text-label-caps text-outline uppercase block mb-2">
+              <label className="text-label-caps text-on-surface-variant uppercase block mb-2">
                 Jenis Jasa
                 {suggestedServices.length > 0 && (
                   <span className="ml-2 text-secondary normal-case">
@@ -661,14 +662,14 @@ Mau kita buatkan proposal lengkap?`
                 </optgroup>
               </select>
               {selectedService && (
-                <p className="text-label-caps text-outline mt-2">
+                <p className="text-label-caps text-on-surface-variant mt-2">
                   ℹ️ {selectedService.description}
                 </p>
               )}
             </div>
 
             <div>
-              <label className="text-label-caps text-outline uppercase block mb-2">
+              <label className="text-label-caps text-on-surface-variant uppercase block mb-2">
                 Mode Hitung
               </label>
               <div className="grid grid-cols-2 gap-2">
@@ -697,7 +698,7 @@ Mau kita buatkan proposal lengkap?`
 
             {calcMode === 'percentage' && selectedService && (
               <div>
-                <label className="text-label-caps text-outline uppercase block mb-2">
+                <label className="text-label-caps text-on-surface-variant uppercase block mb-2">
                   Persentase Fee (default {selectedService.feePercentMin}–{selectedService.feePercentMax}%)
                 </label>
                 <div className="relative">
@@ -709,7 +710,7 @@ Mau kita buatkan proposal lengkap?`
                     placeholder={`${selectedService.feePercentMin}-${selectedService.feePercentMax}`}
                     className="w-full px-md py-3 pr-12 bg-surface-container-low border-none rounded-lg text-body-md focus:ring-2 focus:ring-secondary outline-none"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-outline">%</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant">%</span>
                 </div>
               </div>
             )}
@@ -771,12 +772,12 @@ Mau kita buatkan proposal lengkap?`
               <span className="material-symbols-outlined text-brand-mid">photo_library</span>
               <div className="text-left">
                 <h3 className="text-[15px] font-semibold">Konten Visual Proposal</h3>
-                <p className="text-[12px] text-outline">
+                <p className="text-[12px] text-on-surface-variant">
                   Cover, tentang studio, foto portofolio, moodboard{gallery.length + moodboard.length > 0 ? ` · ${gallery.length + moodboard.length} foto` : ''}
                 </p>
               </div>
             </div>
-            <span className="material-symbols-outlined text-outline">
+            <span className="material-symbols-outlined text-on-surface-variant">
               {showProposalEditor ? 'expand_less' : 'expand_more'}
             </span>
           </button>
@@ -785,7 +786,7 @@ Mau kita buatkan proposal lengkap?`
             <div className="px-md pb-md space-y-md border-t border-outline-variant pt-md">
               {/* Cover */}
               <div>
-                <label className="text-[11px] font-semibold text-outline uppercase tracking-wide block mb-2">
+                <label className="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wide block mb-2">
                   Foto Cover (hero)
                 </label>
                 <div className="flex items-center gap-md">
@@ -793,7 +794,7 @@ Mau kita buatkan proposal lengkap?`
                     {coverImage ? (
                       <img src={coverImage} alt="Cover" className="w-full h-full object-cover" />
                     ) : (
-                      <span className="material-symbols-outlined text-outline">image</span>
+                      <span className="material-symbols-outlined text-on-surface-variant">image</span>
                     )}
                   </div>
                   <div className="flex flex-wrap gap-sm">
@@ -816,7 +817,7 @@ Mau kita buatkan proposal lengkap?`
 
               {/* About */}
               <div>
-                <label className="text-[11px] font-semibold text-outline uppercase tracking-wide block mb-2">
+                <label className="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wide block mb-2">
                   Tentang Studio
                 </label>
                 <textarea
@@ -847,7 +848,7 @@ Mau kita buatkan proposal lengkap?`
 
               {/* Closing */}
               <div>
-                <label className="text-[11px] font-semibold text-outline uppercase tracking-wide block mb-2">
+                <label className="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wide block mb-2">
                   Catatan Penutup
                 </label>
                 <textarea
@@ -868,7 +869,7 @@ Mau kita buatkan proposal lengkap?`
           <div className="flex items-center justify-between mb-md">
             <div>
               <h3 className="font-headline-sm text-headline-sm font-bold">Actions</h3>
-              <p className="text-label-caps text-outline">
+              <p className="text-label-caps text-on-surface-variant">
                 Generate proposal atau kirim ke klien langsung
               </p>
             </div>
@@ -914,6 +915,23 @@ Mau kita buatkan proposal lengkap?`
               </span>
               {savedCRM ? '✓ Tersimpan!' : savingCRM ? 'Menyimpan...' : 'Save to CRM'}
             </button>
+            {onCreateSpk && (
+              <button
+                onClick={() =>
+                  onCreateSpk({
+                    clientName,
+                    clientPhone,
+                    projectName,
+                    totalFee: fee?.feeAvg || 0,
+                    luas: area ? `${area} m²` : '',
+                  })
+                }
+                className="flex items-center justify-center gap-sm py-3 bg-secondary-container text-on-secondary-container rounded-lg font-bold hover:opacity-90 active:scale-95 transition-all md:col-span-2"
+              >
+                <span className="material-symbols-outlined">assignment</span>
+                Lanjut ke SPK (pakai data ini)
+              </button>
+            )}
           </div>
         </div>
       )}

@@ -2,6 +2,7 @@
 import { DBConversation, DBMessage, ConversationService, QuickReplyService, DBQuickReply } from '../services/supabaseClient'
 import { T, Icon, Avatar, Tag, ProgBar, Btn, Dot, Panel, statusColor } from '../components/AcosUI'
 import { n8nService } from '../services/n8nWebhookService'
+import type { ConversationAnalysis } from '../services/n8nWebhookService'
 
 type MobileView = 'list' | 'chat' | 'panel'
 
@@ -39,6 +40,11 @@ const ChatMonitoring: React.FC<ChatMonitoringProps> = ({
   const [showBulkConfirm, setShowBulkConfirm] = useState(false)
   const [mobileView, setMobileView] = useState<MobileView>('list')
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
+
+  // AI Analyst (rangkuman percakapan → spreadsheet)
+  const [analysis, setAnalysis] = useState<ConversationAnalysis | null>(null)
+  const [analyzing, setAnalyzing] = useState(false)
+  const [analysisErr, setAnalysisErr] = useState('')
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768)
@@ -86,6 +92,41 @@ const ChatMonitoring: React.FC<ChatMonitoringProps> = ({
     }
     return () => { if (msgPollRef.current) clearInterval(msgPollRef.current) }
   }, [selectedId])
+
+  // Reset / load AI Analyst saat ganti percakapan (ambil dari metadata bila ada).
+  useEffect(() => {
+    setAnalysisErr('')
+    const conv = conversations.find((c) => c.id === selectedId)
+    const saved = (conv?.metadata as Record<string, unknown> | undefined)?.aiAnalysis
+    setAnalysis(saved ? (saved as ConversationAnalysis) : null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId])
+
+  const handleAnalyze = async () => {
+    if (!selectedConv) return
+    setAnalyzing(true)
+    setAnalysisErr('')
+    const meta = (selectedConv.metadata || {}) as Record<string, string>
+    const res = await n8nService.analyzeConversation({
+      conversationId: selectedConv.id,
+      clientName: selectedConv.client_name || '',
+      phone: meta.phoneNumber || selectedConv.id,
+      channel: selectedConv.source || 'whatsapp',
+      transcript: messages.map((m) => ({ role: m.role, content: m.content })),
+    })
+    setAnalyzing(false)
+    if (res.success && res.data) {
+      const data = res.data
+      setAnalysis(data)
+      // Persist ke metadata supaya tetap ada saat reload.
+      ConversationService.upsertConversation({
+        id: selectedConv.id,
+        metadata: { ...(selectedConv.metadata || {}), aiAnalysis: data },
+      })
+    } else {
+      setAnalysisErr(res.error || 'Gagal menganalisa percakapan.')
+    }
+  }
 
   const handleMessagesScroll = () => {
     const container = messagesContainerRef.current
@@ -494,23 +535,55 @@ const ChatMonitoring: React.FC<ChatMonitoringProps> = ({
                             {msg.ai_confidence ? ` · ${Math.round(msg.ai_confidence * 100)}%` : ''}
                           </div>
                         )}
-                        <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{msg.content}</div>
                         {(() => {
-                          const mediaUrl = msg.metadata?.mediaUrl;
-                          if (typeof mediaUrl === 'string' && mediaUrl) {
-                            return (
-                              <div style={{ marginTop: 8 }}>
-                                {mediaUrl.match(/\.(jpeg|jpg|gif|png|webp)/i) ? (
-                                  <img src={mediaUrl} alt="attachment" style={{ maxWidth: '100%', borderRadius: 8, maxHeight: 200, objectFit: 'contain' }} />
-                                ) : (
-                                  <a href={mediaUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: msg.role === 'ai' ? T.sky : T.sky, textDecoration: 'underline', fontSize: 11, fontWeight: 600 }}>
-                                    <Icon name="Paperclip" size={12} /> Buka Lampiran
-                                  </a>
-                                )}
-                              </div>
-                            );
+                          const meta = (msg.metadata || {}) as Record<string, unknown>
+                          const str = (v: unknown) => (typeof v === 'string' ? v : '')
+                          const pick = (...keys: string[]) => {
+                            for (const k of keys) {
+                              const v = str(meta[k]).trim()
+                              if (v) return v
+                            }
+                            return ''
                           }
-                          return null;
+                          let mediaUrl = pick(
+                            'mediaUrl', 'media_url', 'imageUrl', 'image_url', 'image',
+                            'fileUrl', 'file_url', 'attachmentUrl', 'attachment_url', 'attachment', 'media', 'url',
+                          )
+                          const mediaType = pick('mediaType', 'media_type')
+                          const content = str(msg.content).trim()
+                          const imgRe = /\.(jpeg|jpg|gif|png|webp)(\?|$)/i
+                          const fileRe = /\.(pdf|mp3|ogg|wav|m4a|opus|mp4|webm|doc|docx|xls|xlsx)(\?|$)/i
+                          // Fallback: kalau body pesan sendiri adalah URL media.
+                          if (!mediaUrl && /^https?:\/\/\S+$/i.test(content) && (imgRe.test(content) || fileRe.test(content))) {
+                            mediaUrl = content
+                          }
+                          const isImage = !!mediaUrl && (imgRe.test(mediaUrl) || mediaType === 'image')
+                          const showText = !!content && content !== mediaUrl
+                          return (
+                            <>
+                              {showText && (
+                                <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{msg.content}</div>
+                              )}
+                              {mediaUrl && (
+                                <div style={{ marginTop: showText ? 8 : 0 }}>
+                                  {isImage ? (
+                                    <a href={mediaUrl} target="_blank" rel="noopener noreferrer">
+                                      <img
+                                        src={mediaUrl}
+                                        alt="attachment"
+                                        loading="lazy"
+                                        style={{ maxWidth: '100%', borderRadius: 8, maxHeight: 220, objectFit: 'contain', display: 'block' }}
+                                      />
+                                    </a>
+                                  ) : (
+                                    <a href={mediaUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: T.sky, textDecoration: 'underline', fontSize: 11, fontWeight: 600 }}>
+                                      <Icon name="Paperclip" size={12} /> Buka Lampiran
+                                    </a>
+                                  )}
+                                </div>
+                              )}
+                            </>
+                          )
                         })()}
                       </div>
                       <div style={{ fontSize: 9.5, color: T.dim, marginTop: 4, alignSelf: isClient ? "flex-start" : "flex-end", display: "flex", alignItems: "center", gap: 4 }}>
@@ -656,6 +729,63 @@ const ChatMonitoring: React.FC<ChatMonitoringProps> = ({
                 </div>
                 <ProgBar value={aiConfidence ?? 0} color={T.sky} h={6} />
                 <div style={{ fontSize: 10.5, color: T.dim, marginTop: 10, lineHeight: 1.4 }}>Rata-rata kepercayaan model AI untuk percakapan ini.</div>
+              </Panel>
+
+              {/* ── AI Analyst — Rangkuman Percakapan → Spreadsheet ── */}
+              <Panel pad={16} style={{ marginTop: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <Icon name="Sparkles" size={14} color={T.sky} />
+                  <span style={{ fontSize: 9.5, fontWeight: 800, color: T.dim, textTransform: 'uppercase', letterSpacing: 0.5 }}>AI Analyst</span>
+                </div>
+
+                {!analysis ? (
+                  <>
+                    <div style={{ fontSize: 11, color: T.dim, lineHeight: 1.5, marginBottom: 12 }}>
+                      Rangkum percakapan jadi data terstruktur (status, proyek, estimasi, progress) untuk dikirim ke spreadsheet.
+                    </div>
+                    <Btn v="primary" style={{ width: '100%', justifyContent: 'center' }} icon="Sparkles" onClick={handleAnalyze} disabled={analyzing || messages.length === 0}>
+                      {analyzing ? 'Menganalisa...' : 'Generate Rangkuman'}
+                    </Btn>
+                  </>
+                ) : (
+                  <>
+                    {analysis.status && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                        <span style={{ fontSize: 9, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.6, padding: '3px 10px', borderRadius: 999, background: `${statusColor[(analysis.status || '').toLowerCase()] || T.sky}22`, color: statusColor[(analysis.status || '').toLowerCase()] || T.sky, border: `1px solid ${statusColor[(analysis.status || '').toLowerCase()] || T.sky}55` }}>{analysis.status}</span>
+                        {analysis.progress_pct !== undefined && analysis.progress_pct !== '' && (
+                          <span style={{ fontSize: 11, color: T.dim, fontFamily: T.mono }}>{analysis.progress_pct}%</span>
+                        )}
+                      </div>
+                    )}
+                    {analysis.ringkasan && (
+                      <div style={{ fontSize: 11.5, color: T.txt, lineHeight: 1.55, background: T.inset, border: `1px solid ${T.line}`, borderRadius: 8, padding: 10, marginBottom: 10 }}>{analysis.ringkasan}</div>
+                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
+                      {[
+                        ['Proyek', analysis.project_type],
+                        ['Lokasi', analysis.lokasi],
+                        ['Luas', analysis.luas_m2 ? `${analysis.luas_m2} m²` : ''],
+                        ['Estimasi', analysis.estimasi_value],
+                        ['Tahap', analysis.design_stage],
+                      ].filter(([, v]) => v).map(([k, v]) => (
+                        <div key={k as string} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 11 }}>
+                          <span style={{ color: T.dim }}>{k}</span>
+                          <span style={{ color: T.txt, fontWeight: 600, textAlign: 'right' }}>{String(v)}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, color: T.green, marginBottom: 10 }}>
+                      <Icon name="CheckCircle2" size={13} color={T.green} />
+                      Tersimpan ke Dashboard & terkirim ke Spreadsheet
+                    </div>
+                    <Btn v="ghost" size="sm" style={{ width: '100%', justifyContent: 'center' }} icon="RefreshCw" onClick={handleAnalyze} disabled={analyzing}>
+                      {analyzing ? 'Menganalisa...' : 'Generate Ulang'}
+                    </Btn>
+                  </>
+                )}
+                {analysisErr && (
+                  <div style={{ fontSize: 10.5, color: T.red, marginTop: 10, lineHeight: 1.4 }}>{analysisErr}</div>
+                )}
               </Panel>
             </>
           ) : (

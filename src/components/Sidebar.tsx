@@ -7,7 +7,11 @@ import {
   FileText, 
   PieChart, 
   Activity, 
-  Settings
+  Settings,
+  Calculator,
+  Wallet,
+  FolderKanban,
+  Bot
 } from 'lucide-react'
 import { PageType } from '../App'
 
@@ -46,12 +50,20 @@ const sections: MenuSection[] = [
     title: 'SALES & KLIEN',
     items: [
       { id: 'pipeline', icon: <Users size={20} />, label: 'CRM & Leads' },
+      { id: 'estimator', icon: <Calculator size={20} />, label: 'AI Estimator' },
     ],
   },
   {
     title: 'DOKUMEN',
     items: [
       { id: 'documents', icon: <FileText size={20} />, label: 'Dokumen & SPK' },
+      { id: 'finance', icon: <Wallet size={20} />, label: 'Finance' },
+    ],
+  },
+  {
+    title: 'EKSEKUSI',
+    items: [
+      { id: 'projects', icon: <FolderKanban size={20} />, label: 'Projects' },
     ],
   },
   {
@@ -59,6 +71,7 @@ const sections: MenuSection[] = [
     items: [
       { id: 'analytics', icon: <PieChart size={20} />, label: 'Analitik & KPI' },
       { id: 'automation', icon: <Activity size={20} />, label: 'Pusat Automasi' },
+      { id: 'ai-studio', icon: <Bot size={20} />, label: 'AI Studio' },
     ],
   },
   {

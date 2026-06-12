@@ -17,6 +17,22 @@
 
 import { Conversation, Message, ConversationMode } from '../types/chat'
 
+/** Hasil analisa AI atas percakapan — dipetakan ke kolom Google Sheet. */
+export interface ConversationAnalysis {
+  tanggal?: string
+  nama?: string
+  phone?: string
+  channel?: string
+  project_type?: string
+  lokasi?: string
+  luas_m2?: number | string
+  estimasi_value?: number | string
+  status?: string // Hot / Warm / Cold / Closing
+  design_stage?: string
+  progress_pct?: number | string
+  ringkasan?: string
+}
+
 const DEFAULT_BASE_URL = 'https://n8n.srv1696073.hstgr.cloud/webhook'
 
 const ENDPOINTS = {
@@ -27,6 +43,8 @@ const ENDPOINTS = {
   triggerEstimator: '/wa-estimator',
   triggerProposal: '/wa-proposal',
   syncConversation: '/incoming-conversation',
+  analyzeConversation: '/analyze-conversation',
+  saveToSheet: '/save-to-sheet',
   ping: '/ping',
 } as const
 
@@ -169,6 +187,50 @@ class N8NWebhookService {
       return { success: true }
     } catch (error) {
       console.error('[n8n] triggerEstimator failed:', error)
+      return { success: false, error: error instanceof Error ? error.message : 'unknown' }
+    }
+  }
+
+  /**
+   * AI Analyst — minta n8n (Groq) merangkum percakapan jadi data terstruktur.
+   * n8n: Webhook /analyze-conversation → Groq llama-3.3-70b (response_format json) → respond JSON.
+   */
+  async analyzeConversation(payload: {
+    conversationId: string
+    clientName: string
+    phone: string
+    channel: string
+    transcript: { role: string; content: string }[]
+  }): Promise<{ success: boolean; data?: ConversationAnalysis; error?: string }> {
+    try {
+      const response = await fetch(this.url(ENDPOINTS.analyzeConversation), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!response.ok) throw new Error(`Analyze failed: ${response.status}`)
+      const json = await response.json()
+      // n8n bisa balas { data: {...} } atau langsung objeknya.
+      const data = (json?.data ?? json) as ConversationAnalysis
+      return { success: true, data }
+    } catch (error) {
+      console.error('[n8n] analyzeConversation failed:', error)
+      return { success: false, error: error instanceof Error ? error.message : 'unknown' }
+    }
+  }
+
+  /** Kirim 1 baris hasil analisa ke Google Spreadsheet via n8n (Append Row). */
+  async saveAnalysisToSheet(row: ConversationAnalysis & { conversationId: string }): Promise<{ success: boolean; error?: string }> {
+    try {
+      const response = await fetch(this.url(ENDPOINTS.saveToSheet), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(row),
+      })
+      if (!response.ok) throw new Error(`Save to sheet failed: ${response.status}`)
+      return { success: true }
+    } catch (error) {
+      console.error('[n8n] saveAnalysisToSheet failed:', error)
       return { success: false, error: error instanceof Error ? error.message : 'unknown' }
     }
   }

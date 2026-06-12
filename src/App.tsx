@@ -7,11 +7,18 @@ import Dashboard from './pages/Dashboard'
 import ChatMonitoring from './pages/ChatMonitoring'
 import Pipeline from './pages/Pipeline'
 import Documents from './pages/Documents'
+import Estimator from './pages/Estimator'
+import Projects from './pages/Projects'
+import Finance from './pages/Finance'
+import AIStudio from './pages/AIStudio'
 import Analytics from './pages/Analytics'
 import AutomationLog from './pages/AutomationLog'
 import Settings from './pages/Settings'
 import LoginPage from './pages/LoginPage'
 import InvoiceBuilder from './pages/InvoiceBuilder'
+import SpkBuilder from './pages/SpkBuilder'
+import ProposalBuilder from './pages/ProposalBuilder'
+import { SpkPrefill } from './services/spkData'
 import { supabase, AIConfigService } from './services/supabaseClient'
 import { authService } from './services/auth'
 import { playNotificationSound, primeAudio, showBrowserNotification } from './services/notify'
@@ -21,21 +28,33 @@ export type PageType =
   | 'dashboard'
   | 'chat-monitoring'
   | 'pipeline'
+  | 'estimator'
   | 'documents'
+  | 'finance'
+  | 'projects'
+  | 'ai-studio'
   | 'analytics'
   | 'automation'
   | 'settings'
   | 'invoice-builder'
+  | 'spk-builder'
+  | 'proposal-builder'
 
 const pageTitles: Record<PageType, string> = {
   dashboard: 'Command Center',
   'chat-monitoring': 'Active Chats',
   pipeline: 'Client CRM',
+  estimator: 'AI Estimator',
   documents: 'Dokumen & SPK',
+  finance: 'Finance',
+  projects: 'Projects',
+  'ai-studio': 'AI Studio',
   analytics: 'Analitik & KPI',
   automation: 'Pusat Automasi',
   settings: 'Pengaturan',
   'invoice-builder': 'Buat Invoice',
+  'spk-builder': 'Buat SPK',
+  'proposal-builder': 'Proposal Generator',
 }
 
 class PageErrorBoundary extends Component<
@@ -82,6 +101,7 @@ class PageErrorBoundary extends Component<
 function App() {
   const [authed, setAuthed] = useState<boolean>(() => authService.isAuthenticated())
   const [currentPage, setCurrentPage] = useState<PageType>('dashboard')
+  const [spkPrefill, setSpkPrefill] = useState<SpkPrefill | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [chatBadge, setChatBadge] = useState(0)
   const [logo, setLogo] = useState<string>('')
@@ -253,10 +273,22 @@ function App() {
         )
       case 'pipeline':
         return <Pipeline />
+      case 'estimator':
+        return <Estimator onCreateSpk={(p) => { setSpkPrefill(p); setCurrentPage('spk-builder') }} />
       case 'documents':
-        return <Documents onNavigate={setCurrentPage} />
+        return <Documents onNavigate={(p) => { if (p === 'spk-builder') setSpkPrefill(null); setCurrentPage(p) }} />
+      case 'finance':
+        return <Finance onNavigate={setCurrentPage} />
+      case 'projects':
+        return <Projects />
+      case 'ai-studio':
+        return <AIStudio />
       case 'invoice-builder':
         return <InvoiceBuilder onBack={() => setCurrentPage('documents')} />
+      case 'spk-builder':
+        return <SpkBuilder prefill={spkPrefill} onBack={() => setCurrentPage('documents')} />
+      case 'proposal-builder':
+        return <ProposalBuilder onBack={() => setCurrentPage('documents')} />
       case 'analytics':
         return <Analytics />
       case 'automation':

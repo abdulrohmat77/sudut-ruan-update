@@ -1,0 +1,149 @@
+{
+  "name": "WF-7 · AI Analyst (Rangkuman → Spreadsheet)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "analyze-conversation",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-analyze",
+      "name": "Webhook /analyze-conversation",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, -200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Susun transcript jadi teks untuk LLM.\nconst body = $json.body || $json;\nconst t = Array.isArray(body.transcript) ? body.transcript : [];\nconst lines = t.map(m => `${(m.role||'').toUpperCase()}: ${m.content||''}`).join('\\n');\nconst today = new Date().toLocaleDateString('id-ID', { day:'2-digit', month:'2-digit', year:'numeric' });\nreturn [{ json: {\n  conversationId: body.conversationId || '',\n  nama: body.clientName || '',\n  phone: body.phone || '',\n  channel: body.channel || 'whatsapp',\n  tanggal: today,\n  transcriptText: lines || '(tidak ada pesan)'\n} }];"
+      },
+      "id": "build-prompt",
+      "name": "Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, -200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"system_instruction\": { \"parts\": [{ \"text\": \"Kamu analis CRM untuk studio arsitektur Sudut Ruang. Rangkum percakapan dengan klien menjadi JSON VALID dengan field persis: tanggal, nama, phone, channel, project_type, lokasi, luas_m2 (angka m2, boleh kosong), estimasi_value (angka rupiah tanpa titik, boleh kosong), status (salah satu: Hot, Warm, Cold, Closing), design_stage (mis. Brief, Desain Skematik, Design Development, Detail Drawing, atau '-'), progress_pct (0-100), ringkasan (1-2 kalimat ringkas bahasa Indonesia). Nilai status: Cold=baru tanya/inquiry, Warm=tertarik masih pertimbangan, Hot=siap deal/minta proposal, Closing=deal/kontrak. Jangan menambah field lain.\" }] },\n  \"contents\": [{ \"role\": \"user\", \"parts\": [{ \"text\": \"Tanggal: {{ $json.tanggal }}\\nNama: {{ $json.nama }}\\nPhone: {{ $json.phone }}\\nChannel: {{ $json.channel }}\\n\\nTranskrip:\\n{{ $json.transcriptText }}\" }] }],\n  \"generationConfig\": { \"temperature\": 0.2, \"responseMimeType\": \"application/json\" }\n}",
+        "options": {}
+      },
+      "id": "gemini",
+      "name": "Gemini — Summarize",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, -200],
+      "credentials": {
+        "httpHeaderAuth": { "id": "gemini-cred", "name": "Gemini Authorization" }
+      },
+      "notes": "Header Auth → Name: x-goog-api-key, Value: <GEMINI_API_KEY>. Model bisa diganti ke gemini-1.5-flash."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse JSON dari Gemini + lengkapi field identitas dari Build Prompt.\nconst base = $('Build Prompt').first().json;\nlet out = {};\ntry {\n  const content = $json.candidates[0].content.parts[0].text;\n  out = JSON.parse(content);\n} catch (e) {\n  out = { ringkasan: 'Gagal parse output AI', status: 'Cold' };\n}\nreturn [{ json: {\n  conversationId: base.conversationId,\n  tanggal: out.tanggal || base.tanggal,\n  nama: out.nama || base.nama,\n  phone: out.phone || base.phone,\n  channel: out.channel || base.channel,\n  project_type: out.project_type || '',\n  lokasi: out.lokasi || '',\n  luas_m2: out.luas_m2 ?? '',\n  estimasi_value: out.estimasi_value ?? '',\n  status: out.status || 'Cold',\n  design_stage: out.design_stage || '-',\n  progress_pct: out.progress_pct ?? 0,\n  ringkasan: out.ringkasan || ''\n} }];"
+      },
+      "id": "parse",
+      "name": "Parse Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, -200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ data: $json }) }}",
+        "options": {}
+      },
+      "id": "respond-analyze",
+      "name": "Respond (data)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, -200]
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "save-to-sheet",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-save",
+      "name": "Webhook /save-to-sheet",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 120]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "GANTI_DENGAN_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Tanggal": "={{ $json.body.tanggal }}",
+            "Nama": "={{ $json.body.nama }}",
+            "Phone": "={{ $json.body.phone }}",
+            "Channel": "={{ $json.body.channel }}",
+            "Project Type": "={{ $json.body.project_type }}",
+            "Lokasi": "={{ $json.body.lokasi }}",
+            "Luas": "={{ $json.body.luas_m2 }}",
+            "Estimasi Value": "={{ $json.body.estimasi_value }}",
+            "Status": "={{ $json.body.status }}",
+            "Design Stage": "={{ $json.body.design_stage }}",
+            "Progress": "={{ $json.body.progress_pct }}",
+            "Ringkasan AI": "={{ $json.body.ringkasan }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "sheet-append",
+      "name": "Google Sheets — Append Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [560, 120],
+      "credentials": {
+        "googleSheetsOAuth2Api": { "id": "gsheet-cred", "name": "Google Sheets PRIBADI" }
+      },
+      "notes": "Ganti documentId dengan Spreadsheet ID milikmu. Pastikan nama kolom header di sheet SAMA dengan key di mapping."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true }) }}",
+        "options": {}
+      },
+      "id": "respond-save",
+      "name": "Respond (ok)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [800, 120]
+    }
+  ],
+  "connections": {
+    "Webhook /analyze-conversation": { "main": [[{ "node": "Build Prompt", "type": "main", "index": 0 }]] },
+    "Build Prompt": { "main": [[{ "node": "Gemini — Summarize", "type": "main", "index": 0 }]] },
+    "Gemini — Summarize": { "main": [[{ "node": "Parse Result", "type": "main", "index": 0 }]] },
+    "Parse Result": { "main": [[{ "node": "Respond (data)", "type": "main", "index": 0 }]] },
+    "Webhook /save-to-sheet": { "main": [[{ "node": "Google Sheets — Append Row", "type": "main", "index": 0 }]] },
+    "Google Sheets — Append Row": { "main": [[{ "node": "Respond (ok)", "type": "main", "index": 0 }]] }
+  },
+  "settings": {},
+  "pinData": {}
+}

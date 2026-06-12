@@ -1,7 +1,18 @@
 import React, { useState, useEffect } from 'react'
 import { PageType } from '../App'
 import { T, Icon, Panel, PanelHead, Btn, Tag, Dot, Stat, Spark, Bars, Ring } from '../components/AcosUI'
-import { ClientService, DBClient } from '../services/supabaseClient'
+import { ClientService, DBClient, ConversationService } from '../services/supabaseClient'
+import type { ConversationAnalysis } from '../services/n8nWebhookService'
+
+const statusTone = (s?: string): string => {
+  switch ((s || '').toLowerCase()) {
+    case 'hot': return T.red
+    case 'warm': return T.amber
+    case 'cold': return T.dim
+    case 'closing': return T.green
+    default: return T.sky
+  }
+}
 
 interface DashboardProps {
   onNavigate?: (page: PageType) => void
@@ -194,8 +205,72 @@ function ProjectsMini({ setPage, clients }: { setPage: (p: any) => void, clients
   );
 }
 
-// ── MAIN DASHBOARD ───────────────────────────────────────────
+function CustomerInsights({ setPage }: { setPage: (p: any) => void }) {
+  const [rows, setRows] = useState<(ConversationAnalysis & { _id: string })[]>([])
+  const [loading, setLoading] = useState(true)
 
+  const load = () => {
+    ConversationService.getAll().then((convs) => {
+      const out = convs
+        .map((c) => {
+          const a = (c.metadata as Record<string, unknown> | undefined)?.aiAnalysis as ConversationAnalysis | undefined
+          if (!a) return null
+          return { ...a, _id: c.id, nama: a.nama || c.client_name || '—', channel: a.channel || c.source }
+        })
+        .filter(Boolean) as (ConversationAnalysis & { _id: string })[]
+      setRows(out)
+      setLoading(false)
+    })
+  }
+  useEffect(() => { load() }, [])
+
+  const cols = ['Tanggal', 'Nama', 'Channel', 'Proyek', 'Lokasi', 'Luas', 'Estimasi', 'Status', 'Tahap', 'Progress', 'Ringkasan']
+
+  return (
+    <Panel style={{ gridColumn: '1 / -1', marginTop: 16 }}>
+      <PanelHead title="Data Customer & Progress (AI Summary)" sub="Rangkuman percakapan oleh AI — sinkron dengan Spreadsheet" icon="Sparkles" accent={T.sky}
+        right={<Btn v="ghost" size="sm" icon="RefreshCw" onClick={load}>Refresh</Btn>} />
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 900 }}>
+          <thead style={{ borderBottom: `1px solid ${T.line}` }}>
+            <tr>
+              {cols.map((h, i) => (
+                <th key={h} style={{ padding: '12px 14px', fontSize: 9.5, fontWeight: 700, color: T.dim, textTransform: 'uppercase', letterSpacing: 0.8, whiteSpace: 'nowrap', textAlign: i === 6 || i === 9 ? 'right' : 'left' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={cols.length} style={{ padding: 30, textAlign: 'center', color: T.dim, fontSize: 12 }}>Memuat...</td></tr>
+            ) : rows.length === 0 ? (
+              <tr><td colSpan={cols.length} style={{ padding: 30, textAlign: 'center', color: T.dim, fontSize: 12 }}>
+                Belum ada rangkuman. Buka Active Chats → pilih percakapan → AI Analyst → Generate Rangkuman.
+              </td></tr>
+            ) : rows.map((r) => (
+              <tr key={r._id} onClick={() => setPage('chat-monitoring')} className="ac-row" style={{ borderBottom: `1px solid ${T.line}`, cursor: 'pointer' }}>
+                <td style={{ padding: '11px 14px', fontSize: 11.5, color: T.dim, whiteSpace: 'nowrap' }}>{r.tanggal || '—'}</td>
+                <td style={{ padding: '11px 14px', fontSize: 12, fontWeight: 700, color: T.txt, whiteSpace: 'nowrap' }}>{r.nama || '—'}</td>
+                <td style={{ padding: '11px 14px', fontSize: 11.5, color: T.sub }}>{r.channel || '—'}</td>
+                <td style={{ padding: '11px 14px', fontSize: 11.5, color: T.sub }}>{r.project_type || '—'}</td>
+                <td style={{ padding: '11px 14px', fontSize: 11.5, color: T.sub }}>{r.lokasi || '—'}</td>
+                <td style={{ padding: '11px 14px', fontSize: 11.5, color: T.sub, whiteSpace: 'nowrap' }}>{r.luas_m2 ? `${r.luas_m2} m²` : '—'}</td>
+                <td style={{ padding: '11px 14px', fontSize: 11.5, color: T.txt, fontFamily: T.mono, textAlign: 'right', whiteSpace: 'nowrap' }}>{r.estimasi_value ? fmtRp(Number(r.estimasi_value) || 0) : '—'}</td>
+                <td style={{ padding: '11px 14px' }}>
+                  <span style={{ fontSize: 9, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.6, padding: '3px 9px', borderRadius: 999, background: `${statusTone(r.status)}22`, color: statusTone(r.status), border: `1px solid ${statusTone(r.status)}55`, whiteSpace: 'nowrap' }}>{r.status || '—'}</span>
+                </td>
+                <td style={{ padding: '11px 14px', fontSize: 11.5, color: T.sub, whiteSpace: 'nowrap' }}>{r.design_stage || '—'}</td>
+                <td style={{ padding: '11px 14px', fontSize: 11.5, color: T.txt, fontFamily: T.mono, textAlign: 'right' }}>{r.progress_pct !== undefined && r.progress_pct !== '' ? `${r.progress_pct}%` : '—'}</td>
+                <td style={{ padding: '11px 14px', fontSize: 11.5, color: T.sub, maxWidth: 280 }}>{r.ringkasan || '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
+  )
+}
+
+// ── MAIN DASHBOARD ───────────────────────────────────────────
 const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [clients, setClients] = useState<DBClient[]>([])
   
@@ -288,6 +363,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           <ActivityFeed />
         </div>
       </div>
+
+      <CustomerInsights setPage={handleNav} />
     </div>
   )
 }

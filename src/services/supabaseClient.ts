@@ -53,7 +53,7 @@ export interface DBDocument {
   conversation_id: string | null
   client_phone: string | null
   client_name: string | null
-  type: 'proposal' | 'invoice' | 'rab' | 'followup'
+  type: 'proposal' | 'invoice' | 'rab' | 'followup' | 'spk'
   status: 'draft' | 'sent' | 'viewed' | 'accepted' | 'rejected'
   file_url: string | null
   proposal_no: string | null

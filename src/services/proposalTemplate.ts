@@ -110,17 +110,21 @@ export function computeTotals(data: ProposalData) {
   return { subtotal, tax, grandTotal }
 }
 
-const PALETTE_PRIMARY = '#2b7571'
-const PALETTE_SECONDARY = '#ca7f45'
+const PALETTE_PRIMARY = '#043666'
+const PALETTE_SECONDARY = '#4AB3D8'
 
 export function buildProposalHTML(data: ProposalData): string {
   const cur = data.currency
   const curLabel = cur === 'USD' ? 'USD' : 'IDR'
   const { subtotal, tax, grandTotal } = computeTotals(data)
 
-  const logoBlock = data.company.logo
-    ? `<img src="${esc(data.company.logo)}" alt="Logo" style="height:48px;width:auto;object-fit:contain;margin-bottom:24px;border-radius:6px" />`
-    : ''
+  const logoBlock = `<div class="brandbar">
+    <img src="${esc(data.company.logo || '/logo-main.png')}" alt="Logo" class="brand-logo" />
+    <div class="brand-meta">
+      <div class="brand-name">${esc(data.company.name || 'Sudut Ruang Arsitek')}</div>
+      <div class="brand-tag">Arsitektur · Interior · Lanskap</div>
+    </div>
+  </div>`
 
   const summarySection =
     data.summaryCards.length > 0
@@ -287,19 +291,22 @@ export function buildProposalHTML(data: ProposalData): string {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Proposal Penawaran - ${esc(data.projectTitle)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
     --primary-color: ${PALETTE_PRIMARY};
     --secondary-color: ${PALETTE_SECONDARY};
-    --bg-light: #f2efe4;
-    --text-dark: #222222;
-    --text-muted: #666666;
+    --bg-light: #E1F0F8;
+    --text-dark: #0A3863;
+    --text-muted: #6b7a8f;
   }
   * { box-sizing: border-box; }
   body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family: 'Montserrat', 'Helvetica Neue', Helvetica, Arial, sans-serif;
     color: var(--text-dark);
-    background-color: #f7f7f7;
+    background-color: #eef2f7;
     margin: 0;
     padding: 40px 20px;
     display: flex;
@@ -310,13 +317,25 @@ export function buildProposalHTML(data: ProposalData): string {
     width: 100%;
     max-width: 900px;
     padding: 60px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    box-shadow: 0 4px 20px rgba(4,54,102,0.08);
     border-radius: 4px;
+    position: relative;
+  }
+  .proposal-paper::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    background: linear-gradient(90deg, #5EC2E4 0%, #4AB3D8 32%, #045D93 100%);
+    border-radius: 4px 4px 0 0;
   }
   header .confidential {
     font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
     color: var(--text-muted); margin-bottom: 30px;
   }
+  .brandbar { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+  .brandbar .brand-logo { height: 52px; width: auto; object-fit: contain; }
+  .brandbar .brand-name { font-size: 16px; font-weight: 800; color: var(--primary-color); letter-spacing: -0.3px; }
+  .brandbar .brand-tag { font-size: 8px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--secondary-color); margin-top: 3px; }
+  .cover-hero .brandbar .brand-name { color: #fff; }
+  .cover-hero .brandbar .brand-logo { filter: brightness(0) invert(1); }
   .main-title { font-size: 42px; font-weight: 300; line-height: 1.2; margin: 0 0 10px 0; color: var(--text-dark); }
   .main-title strong { color: var(--primary-color); font-weight: 700; }
   .subtitle { font-size: 18px; color: var(--secondary-color); margin-bottom: 40px; font-style: italic; }
@@ -337,23 +356,26 @@ export function buildProposalHTML(data: ProposalData): string {
   .rab-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
   .rab-table th { background-color: var(--primary-color); color: white; text-align: left; padding: 12px; font-weight: 500; }
   .rab-table td { padding: 12px; border-bottom: 1px solid #eeeeee; }
+  .rab-table td.text-right, .calc-row span:last-child { font-family: 'JetBrains Mono', monospace; }
   .text-right { text-align: right; }
-  .calculation-box { background: var(--bg-light); border-radius: 6px; padding: 25px; margin-top: 30px; margin-left: auto; width: 100%; max-width: 400px; }
-  .calc-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
-  .calc-row.total { border-top: 1px solid #dcd9cd; padding-top: 15px; font-size: 18px; font-weight: bold; color: var(--primary-color); }
+  .calculation-box { background: linear-gradient(135deg, #043666 0%, #045D93 100%); color: #fff; border-radius: 8px; padding: 25px; margin-top: 30px; margin-left: auto; width: 100%; max-width: 400px; }
+  .calc-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; color: rgba(255,255,255,0.85); }
+  .calc-row.total { border-top: 1px solid rgba(255,255,255,0.25); padding-top: 15px; font-size: 18px; font-weight: bold; color: #fff; }
+  .calc-row.total span:last-child { color: #5EC2E4; }
   /* Cover hero */
   .cover-hero { border-radius: 10px; padding: 56px 40px; margin-bottom: 50px; }
   .cover-hero .confidential { color: rgba(255,255,255,0.8); }
   .cover-hero .main-title { color: #fff; }
-  .cover-hero .main-title strong { color: #8fd6bd; }
-  .cover-hero .subtitle { color: #f0e6d8; }
-  .cover-hero .meta-info { background: rgba(255,255,255,0.12); border-left-color: #8fd6bd; color: #fff; backdrop-filter: blur(2px); }
+  .cover-hero .main-title strong { color: #5EC2E4; }
+  .cover-hero .subtitle { color: #cfeaf6; }
+  .cover-hero .meta-info { background: rgba(255,255,255,0.12); border-left-color: #5EC2E4; color: #fff; backdrop-filter: blur(2px); }
   /* Image galleries */
   .gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 20px; }
   .gallery-item { margin: 0; border-radius: 8px; overflow: hidden; border: 1px solid #e8e8e8; background: #fafafa; }
   .gallery-item img { width: 100%; height: 200px; object-fit: cover; display: block; }
   .gallery-item figcaption { padding: 10px 14px; font-size: 13px; color: var(--text-muted); }
-  footer { margin-top: 80px; border-top: 1px solid #eeeeee; padding-top: 20px; font-size: 12px; color: var(--text-muted); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  footer { margin-top: 80px; border-top: 1px solid #eeeeee; padding-top: 20px; font-size: 12px; color: var(--text-muted); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; align-items: center; }
+  footer .footer-tagline { width: 100%; text-align: center; margin-top: 8px; font-size: 9px; letter-spacing: 0.22em; color: var(--secondary-color); font-weight: 700; }
   @media print {
     body { background: #fff; padding: 0; }
     .proposal-paper { box-shadow: none; padding: 32px; max-width: none; }
@@ -388,6 +410,7 @@ export function buildProposalHTML(data: ProposalData): string {
     <footer>
       <div><strong>${esc(data.company.name)}</strong>${data.company.locations ? ` • ${esc(data.company.locations)}` : ''}</div>
       ${data.company.phone ? `<div>Hubungi: ${esc(data.company.phone)}</div>` : ''}
+      <div class="footer-tagline">DESIGNING CORNERS · DEFINING SPACES</div>
     </footer>
   </div>
 </body>

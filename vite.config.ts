@@ -7,8 +7,11 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Service worker dimatikan saat development untuk mencegah cache basi
+      // yang menyebabkan layar blank putih setelah restart dev server.
+      // PWA tetap aktif penuh pada build produksi (npm run build).
       devOptions: {
-        enabled: true
+        enabled: false
       },
       manifest: {
         name: 'Kiro by Sudut Ruang',

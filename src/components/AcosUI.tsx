@@ -46,6 +46,19 @@ export function applyTheme(mode: string, density: string = 'Nyaman') {
     root.setProperty('--bg-surface-dim', '#EBF1F6');
     root.setProperty('--bg-surface-variant', '#FFFFFF');
     
+    root.setProperty('--bg-surface-container-lowest', '#FFFFFF');
+    root.setProperty('--bg-surface-container-low', '#F3F7FA');
+    root.setProperty('--bg-surface-container', '#EBF1F6');
+    root.setProperty('--bg-surface-container-high', '#E1EAF2');
+
+    root.setProperty('--color-primary', '#045D93');
+    root.setProperty('--text-on-primary', '#FFFFFF');
+    root.setProperty('--color-secondary', '#045D93');
+    root.setProperty('--bg-secondary-container', '#045D93');
+    root.setProperty('--text-on-secondary-container', '#EAF4FB');
+    root.setProperty('--bg-tertiary-fixed', 'rgba(4,93,147,0.12)');
+    root.setProperty('--text-on-tertiary-fixed', '#045D93');
+
     root.setProperty('--text-on-background', '#04203a');
     root.setProperty('--text-on-surface', '#04203a');
     root.setProperty('--text-on-surface-variant', '#415A72');
@@ -82,6 +95,19 @@ export function applyTheme(mode: string, density: string = 'Nyaman') {
     root.setProperty('--bg-surface-dim', '#06223e');
     root.setProperty('--bg-surface-variant', '#022747');
     
+    root.setProperty('--bg-surface-container-lowest', '#06223e');
+    root.setProperty('--bg-surface-container-low', '#082a4b');
+    root.setProperty('--bg-surface-container', '#0b3460');
+    root.setProperty('--bg-surface-container-high', '#0e3d6e');
+
+    root.setProperty('--color-primary', '#4AB3D8');
+    root.setProperty('--text-on-primary', '#04203a');
+    root.setProperty('--color-secondary', '#5FD4FF');
+    root.setProperty('--bg-secondary-container', '#045D93');
+    root.setProperty('--text-on-secondary-container', '#EAF4FB');
+    root.setProperty('--bg-tertiary-fixed', 'rgba(74,179,216,0.15)');
+    root.setProperty('--text-on-tertiary-fixed', '#5FD4FF');
+
     root.setProperty('--text-on-background', '#EAF4FB');
     root.setProperty('--text-on-surface', '#EAF4FB');
     root.setProperty('--text-on-surface-variant', '#9DBAD2');

@@ -5,6 +5,18 @@ import './index.css'
 import { AIConfigService } from './services/supabaseClient'
 import { n8nService } from './services/n8nWebhookService'
 
+// Saat development: bersihkan service worker + cache PWA yang mungkin tersisa
+// dari sesi sebelumnya. SW dev yang basi adalah penyebab umum layar blank putih
+// setelah restart dev server. Di produksi blok ini tidak berjalan.
+if (import.meta.env.DEV && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then((regs) => {
+    regs.forEach((reg) => reg.unregister())
+  })
+  if ('caches' in window) {
+    caches.keys().then((keys) => keys.forEach((k) => caches.delete(k)))
+  }
+}
+
 // Boot-load webhook_url dari Supabase ai_config supaya semua page pakai URL terkini.
 // Tidak perlu await — fire-and-forget. Default URL akan dipakai sampai config tiba.
 ;(async () => {
