@@ -550,12 +550,14 @@ Wonokromo, Surabaya 60245 — Jawa Timur
 
 <script>
   // =============== STATE ===============
+  // Logo default di-preload dari /public (selalu ter-load tanpa upload manual).
   let state = {
-    logos: { sra: null, mandiri: null, bca: null },
+    logos: { sra: '/logo-main.png', mandiri: '/mandiri-logo.png', bca: '/bca-logo.png' },
     termijns: [
-      { label: 'Down Payment / Uang Muka', sub: 'Pengikatan kontrak · mulai pelaksanaan', percent: 40, status: 'current' },
-      { label: 'Termin 1 — Schematic & Design Development', sub: 'Denah · tampak · potongan · perspektif 3D', percent: 40, status: 'upcoming' },
-      { label: 'Termin 2 — Detail Drawing & RAB', sub: 'Pola lantai · plafon · detail · Rencana Anggaran Biaya', percent: 20, status: 'upcoming' }
+      { label: 'Down Payment / Uang Muka', sub: 'Saat penandatanganan SPK · mulai pelaksanaan', percent: 30, status: 'current' },
+      { label: 'Termin 1 — Schematic & Design Development (ARS)', sub: 'Penyelesaian Tahap 2 & 3A', percent: 30, status: 'upcoming' },
+      { label: 'Termin 2 — Detail Drawing (ARS) & RAB', sub: 'Penyelesaian Tahap 3B', percent: 30, status: 'upcoming' },
+      { label: 'Termin 3', sub: 'Pendampingan lapangan / penyerahan akhir', percent: 10, status: 'upcoming' }
     ]
   };
 
@@ -883,7 +885,11 @@ Wonokromo, Surabaya 60245 — Jawa Timur
       const res = await window.storage.get(STORAGE_KEY);
       if (!res) return;
       const data = JSON.parse(res.value);
-      if (data.logos) state.logos = data.logos;
+      if (data.logos) state.logos = {
+        sra: data.logos.sra || '/logo-main.png',
+        mandiri: data.logos.mandiri || '/mandiri-logo.png',
+        bca: data.logos.bca || '/bca-logo.png',
+      };
       if (data.termijns) state.termijns = data.termijns;
       if (data.fields) {
         Object.entries(data.fields).forEach(([id, val]) => {
