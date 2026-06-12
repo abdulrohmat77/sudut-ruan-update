@@ -492,10 +492,16 @@ const ChatMonitoring: React.FC<ChatMonitoringProps> = ({
             {/* Header */}
             <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", background: T.panel, borderBottom: `1px solid ${T.line}`, zIndex: 10 }}>
               <div className="md:hidden" onClick={() => setMobileView('list')} style={{ cursor: "pointer", color: T.dim }}><Icon name="ArrowLeft" size={18} color={T.dim} /></div>
-              <Avatar initials={(selectedConv.client_name || '?').charAt(0).toUpperCase()} color={statusColor[selectedConv.status] || T.sky} size={36} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 800, color: T.txt, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedConv.client_name || 'Pelanggan'}</div>
-                <div style={{ fontSize: 10, color: T.dim, fontFamily: T.mono }}>{selectedConv.source.toUpperCase()} · {selectedConv.id}</div>
+              <div
+                onClick={() => setMobileView('panel')}
+                title="Lihat info kontak & rangkuman AI"
+                style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}
+              >
+                <Avatar initials={(selectedConv.client_name || '?').charAt(0).toUpperCase()} color={statusColor[selectedConv.status] || T.sky} size={36} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: T.txt, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedConv.client_name || 'Pelanggan'}</div>
+                  <div style={{ fontSize: 10, color: T.dim, fontFamily: T.mono }}>{selectedConv.source.toUpperCase()} · {selectedConv.id}</div>
+                </div>
               </div>
               <Btn v={selectedConv.mode === 'ai' ? 'primary' : 'ghost'} size="sm" icon={selectedConv.mode === 'ai' ? "UserSquare" : "Bot"} onClick={handleToggleMode} disabled={togglingMode}>
                 {selectedConv.mode === 'ai' ? 'Ambil Alih' : 'Kembali ke AI'}
