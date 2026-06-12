@@ -36,6 +36,28 @@ export interface SpkPrefill {
   durasiBulan?: number
 }
 
+/** Termin untuk prefill invoice (label/sub/persen). */
+export interface InvoiceTerminPrefill {
+  label: string
+  sub: string
+  percent: number
+}
+
+/**
+ * Data awal untuk mengisi Invoice dari dokumen lain (mis. dari SPK).
+ * Dikirim ke iframe template invoice lewat query param `data`.
+ */
+export interface InvoicePrefill {
+  clientName?: string
+  clientPhone?: string
+  projectName?: string
+  projectType?: string
+  location?: string
+  area?: string
+  contractValue?: number
+  termins?: InvoiceTerminPrefill[]
+}
+
 export const SPK_JENIS_OPTIONS: SpkJenis[] = [
   'Perancangan Arsitektur',
   'Perancangan Interior',

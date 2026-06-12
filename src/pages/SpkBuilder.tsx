@@ -3,7 +3,7 @@ import { T } from '../components/AcosUI'
 import {
   ArrowLeft, FileSignature, Hash, Calendar, User, BadgeCheck, MapPin,
   Building2, Wallet, ShieldCheck, CheckCircle2, AlertTriangle, Loader2, FileDown,
-  Trash2, Plus,
+  Trash2, Plus, Receipt,
 } from 'lucide-react'
 import { DocumentService } from '../services/supabaseClient'
 import { openSpkPrintWindow, buildSpkDocumentHtml } from '../services/spkDocument'
@@ -11,12 +11,13 @@ import {
   PRINCIPAL, SPK_TAHAPAN, SPK_EXCLUSIONS, SPK_GUARDRAILS, SPK_QA_CHECKLIST,
   SPK_JENIS_OPTIONS, SPK_KATEGORI_OPTIONS, DEFAULT_TERMINS, buildTermins,
   generateSpkNumber, terbilang, formatTanggalIndo, formatIDR,
-  type SpkJenis, type SpkKategori, type SpkTerminInput, type SpkPrefill,
+  type SpkJenis, type SpkKategori, type SpkTerminInput, type SpkPrefill, type InvoicePrefill,
 } from '../services/spkData'
 
 interface Props {
   onBack: () => void
   prefill?: SpkPrefill | null
+  onCreateInvoice?: (prefill: InvoicePrefill) => void
 }
 
 // ── Small presentational helpers (inline T theme) ───────────
@@ -46,7 +47,7 @@ const Card: React.FC<{ refTag: string; title: string; children: React.ReactNode 
   </div>
 )
 
-const SpkBuilder = ({ onBack, prefill }: Props) => {
+const SpkBuilder = ({ onBack, prefill, onCreateInvoice }: Props) => {
   const today = formatTanggalIndo()
   const [saving, setSaving] = useState(false)
   const [alertInfo, setAlertInfo] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
@@ -185,7 +186,7 @@ const SpkBuilder = ({ onBack, prefill }: Props) => {
 
       {/* Scroll area */}
       <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(380px,560px)', gap: 20, maxWidth: 1440, margin: '0 auto' }} className="spk-grid">
+        <div className="doc-builder-grid">
           {/* LEFT — form */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <Card refTag="§1" title="Identitas SPK">
@@ -391,12 +392,12 @@ const SpkBuilder = ({ onBack, prefill }: Props) => {
           </div>
 
           {/* RIGHT — sticky live preview (HTML identik dengan hasil cetak) */}
-          <div style={{ position: 'sticky', top: 0, alignSelf: 'start', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="doc-builder-aside" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: 11, fontWeight: 700, color: T.dim, textTransform: 'uppercase', letterSpacing: 0.6 }}>Preview Dokumen (live)</span>
               <span style={{ fontSize: 10.5, color: T.dim }}>Tampilan ini = hasil cetak</span>
             </div>
-            <div style={{ background: '#fff', border: `1px solid ${T.line}`, borderRadius: 14, overflow: 'hidden', height: 'calc(100vh - 250px)', minHeight: 460 }}>
+            <div className="doc-preview-frame" style={{ background: '#fff', border: `1px solid ${T.line}`, borderRadius: 14, overflow: 'hidden', height: 'calc(100vh - 250px)', minHeight: 460 }}>
               <iframe
                 title="Preview SPK"
                 srcDoc={docHtml}
@@ -425,6 +426,26 @@ const SpkBuilder = ({ onBack, prefill }: Props) => {
             >
               <FileDown size={16} /> Generate PDF (cetak)
             </button>
+            {onCreateInvoice && (
+              <button
+                onClick={() =>
+                  onCreateInvoice({
+                    clientName: vars.NAMA_KLIEN,
+                    clientPhone: vars.HP_KLIEN,
+                    projectName: vars.NAMA_PROYEK,
+                    projectType: vars.JENIS_PEKERJAAN,
+                    location: vars.LOKASI_PROYEK,
+                    area: vars.LUAS_LAHAN,
+                    contractValue: vars.TOTAL_FEE,
+                    termins: termins.map((t) => ({ label: t.label, sub: t.trigger, percent: t.pct })),
+                  })
+                }
+                disabled={!allGood}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: 12, borderRadius: 12, border: 'none', fontWeight: 700, fontSize: 13, background: allGood ? T.bright : T.inset, color: allGood ? '#fff' : T.dim, cursor: allGood ? 'pointer' : 'not-allowed' }}
+              >
+                <Receipt size={16} /> Lanjut ke Invoice (tagihan)
+              </button>
+            )}
             {!allGood && (
               <p style={{ fontSize: 11, color: T.dim, textAlign: 'center', margin: 0 }}>
                 Lengkapi nama klien, total fee, dan pastikan termin 100%.

@@ -1,15 +1,47 @@
 import React, { useEffect, useState } from 'react'
 import { DocumentService, DBDocument } from '../services/supabaseClient'
 import { T } from '../components/AcosUI'
-import { FileText, FileSignature, Receipt, Plus, Search, X, Loader2, Download, Trash2 } from 'lucide-react'
+import { FileText, FileSignature, Receipt, Plus, Search, X, Loader2, Download, Trash2, ArrowRight } from 'lucide-react'
 
 import { PageType } from '../App'
+import { SpkPrefill, InvoicePrefill } from '../services/spkData'
 
 interface Props {
   onNavigate?: (page: PageType) => void
+  onContinueToSpk?: (prefill: SpkPrefill) => void
+  onContinueToInvoice?: (prefill: InvoicePrefill) => void
 }
 
-const Documents = ({ onNavigate }: Props) => {
+// Bangun prefill SPK dari dokumen proposal tersimpan.
+function spkPrefillFromDoc(doc: DBDocument): SpkPrefill {
+  const d = (doc.data || {}) as Record<string, any>
+  return {
+    clientName: doc.client_name || d.clientName || '',
+    clientPhone: doc.client_phone || '',
+    projectName: d.projectName || '',
+    totalFee: Number(d.subtotal ?? d.totalAvg ?? d.feeAvg ?? 0) || 0,
+  }
+}
+
+// Bangun prefill Invoice dari dokumen SPK tersimpan.
+function invoicePrefillFromDoc(doc: DBDocument): InvoicePrefill {
+  const d = (doc.data || {}) as Record<string, any>
+  const termins = Array.isArray(d.termins)
+    ? d.termins.map((t: any) => ({ label: t.label || '', sub: t.trigger || '', percent: Number(t.pct) || 0 }))
+    : undefined
+  return {
+    clientName: doc.client_name || d.NAMA_KLIEN || '',
+    clientPhone: doc.client_phone || d.HP_KLIEN || '',
+    projectName: d.NAMA_PROYEK || '',
+    projectType: d.JENIS_PEKERJAAN || '',
+    location: d.LOKASI_PROYEK || '',
+    area: d.LUAS_LAHAN || '',
+    contractValue: Number(d.TOTAL_FEE ?? 0) || 0,
+    termins,
+  }
+}
+
+const Documents = ({ onNavigate, onContinueToSpk, onContinueToInvoice }: Props) => {
   const [documents, setDocuments] = useState<DBDocument[]>([])
   const [loading, setLoading] = useState(true)
   const [filterType, setFilterType] = useState<'all' | 'proposal' | 'spk' | 'invoice'>('all')
@@ -171,6 +203,16 @@ const Documents = ({ onNavigate }: Props) => {
                   </td>
                   <td style={{ padding: '12px 16px', textAlign: 'right' }}>
                     <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                      {doc.type === 'proposal' && onContinueToSpk && (
+                        <button onClick={() => onContinueToSpk(spkPrefillFromDoc(doc))} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 10px', background: `${T.sky}18`, border: `1px solid ${T.sky}40`, borderRadius: 8, cursor: 'pointer', color: T.sky, fontSize: 11, fontWeight: 700 }} title="Lanjut ke SPK (pakai data ini)">
+                          SPK <ArrowRight size={12} />
+                        </button>
+                      )}
+                      {doc.type === 'spk' && onContinueToInvoice && (
+                        <button onClick={() => onContinueToInvoice(invoicePrefillFromDoc(doc))} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 10px', background: `${T.sky}18`, border: `1px solid ${T.sky}40`, borderRadius: 8, cursor: 'pointer', color: T.sky, fontSize: 11, fontWeight: 700 }} title="Lanjut ke Invoice (pakai data ini)">
+                          Invoice <ArrowRight size={12} />
+                        </button>
+                      )}
                       <button style={{ padding: 7, background: T.inset, border: `1px solid ${T.line}`, borderRadius: 8, cursor: 'pointer', color: T.dim, display: 'inline-flex', transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = T.sky} onMouseLeave={e => e.currentTarget.style.color = T.dim} title="Download">
                         <Download size={14} />
                       </button>

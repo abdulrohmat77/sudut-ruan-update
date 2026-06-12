@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { T } from '../components/AcosUI'
-import { ArrowLeft, Plus, Trash2, Loader2, Eye, Save } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Loader2, Eye, Save, ArrowRight } from 'lucide-react'
 import { AIConfigService, DocumentService } from '../services/supabaseClient'
 import ProposalPreviewModal from '../components/ProposalPreviewModal'
 import {
@@ -12,9 +12,11 @@ import {
   defaultTimeline,
   formatMoney,
 } from '../services/proposalTemplate'
+import { SpkPrefill } from '../services/spkData'
 
 interface Props {
   onBack: () => void
+  onCreateSpk?: (prefill: SpkPrefill) => void
 }
 
 const inputStyle: React.CSSProperties = {
@@ -39,7 +41,7 @@ const Card: React.FC<{ tag: string; title: string; children: React.ReactNode }> 
   </div>
 )
 
-const ProposalBuilder = ({ onBack }: Props) => {
+const ProposalBuilder = ({ onBack, onCreateSpk }: Props) => {
   const [saving, setSaving] = useState(false)
   const [savedInfo, setSavedInfo] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [showPreview, setShowPreview] = useState(false)
@@ -201,7 +203,7 @@ const ProposalBuilder = ({ onBack }: Props) => {
 
       {/* Body */}
       <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(380px,560px)', gap: 20, maxWidth: 1440, margin: '0 auto' }}>
+        <div className="doc-builder-grid">
           {/* LEFT — form */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <Card tag="§1" title="Identitas Proposal">
@@ -276,12 +278,12 @@ const ProposalBuilder = ({ onBack }: Props) => {
           </div>
 
           {/* RIGHT — live preview + actions */}
-          <div style={{ position: 'sticky', top: 0, alignSelf: 'start', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="doc-builder-aside" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: 11, fontWeight: 700, color: T.dim, textTransform: 'uppercase', letterSpacing: 0.6 }}>Preview Dokumen (live)</span>
               <span style={{ fontSize: 10.5, color: T.dim }}>= hasil cetak</span>
             </div>
-            <div style={{ background: '#fff', border: `1px solid ${T.line}`, borderRadius: 14, overflow: 'hidden', height: 'calc(100vh - 250px)', minHeight: 460 }}>
+            <div className="doc-preview-frame" style={{ background: '#fff', border: `1px solid ${T.line}`, borderRadius: 14, overflow: 'hidden', height: 'calc(100vh - 250px)', minHeight: 460 }}>
               <iframe title="Preview Proposal" srcDoc={docHtml} style={{ width: '100%', height: '100%', border: 'none', background: '#fff' }} />
             </div>
             <button
@@ -300,6 +302,21 @@ const ProposalBuilder = ({ onBack }: Props) => {
             >
               <Eye size={16} /> Preview & Cetak (PDF)
             </button>
+            {onCreateSpk && (
+              <button
+                onClick={() =>
+                  onCreateSpk({
+                    clientName,
+                    clientPhone,
+                    projectName: projectTitle,
+                    totalFee: totals.subtotal,
+                  })
+                }
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: 12, borderRadius: 12, border: 'none', fontWeight: 700, fontSize: 13, background: T.bright, color: '#fff', cursor: 'pointer' }}
+              >
+                <ArrowRight size={16} /> Lanjut ke SPK (pakai data ini)
+              </button>
+            )}
           </div>
         </div>
       </div>

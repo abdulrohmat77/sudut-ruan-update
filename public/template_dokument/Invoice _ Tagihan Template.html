@@ -952,10 +952,34 @@ Wonokromo, Surabaya 60245 — Jawa Timur
 
   (async function init() {
     await loadState();
+    applyPrefillFromURL();
     renderTermijnBuilder();
     attachListeners();
     render();
   })();
+
+  // Isi otomatis dari dokumen sebelumnya (SPK → Invoice) lewat query param `data`.
+  function applyPrefillFromURL() {
+    try {
+      const raw = new URLSearchParams(location.search).get('data');
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      const setVal = (id, v) => { const el = $(id); if (el && v != null && v !== '') el.value = v; };
+      setVal('cliName', d.clientName);
+      setVal('cliPhone', d.clientPhone);
+      setVal('projName', d.projectName);
+      setVal('projType', d.projectType);
+      setVal('projLoc', d.location);
+      setVal('projArea', d.area);
+      if (d.contractValue != null) setVal('contractValue', d.contractValue);
+      if (Array.isArray(d.termins) && d.termins.length) {
+        state.termijns = d.termins.map((t, i) => ({
+          label: t.label || '', sub: t.sub || '', percent: Number(t.percent) || 0,
+          status: i === 0 ? 'current' : 'upcoming',
+        }));
+      }
+    } catch (e) {}
+  }
 </script>
 </body>
 </html>

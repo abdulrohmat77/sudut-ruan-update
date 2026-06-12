@@ -2,14 +2,27 @@ import { useState, useEffect } from 'react'
 import { T } from '../components/AcosUI'
 import { ArrowLeft } from 'lucide-react'
 import { supabase, DocumentService } from '../services/supabaseClient'
+import { InvoicePrefill } from '../services/spkData'
 
 interface Props {
   onBack: () => void
+  prefill?: InvoicePrefill | null
 }
 
-const InvoiceBuilder = ({ onBack }: Props) => {
+const InvoiceBuilder = ({ onBack, prefill }: Props) => {
   const [loading, setLoading] = useState(true)
   const [alertInfo, setAlertInfo] = useState<{show: boolean, type: 'success' | 'error', message: string} | null>(null)
+
+  // URL iframe + data prefill (dari SPK) lewat query param.
+  const iframeSrc = (() => {
+    const base = '/template_dokument/Invoice _ Tagihan Template.html?v=20260612-4'
+    if (!prefill) return base
+    try {
+      return `${base}&data=${encodeURIComponent(JSON.stringify(prefill))}`
+    } catch {
+      return base
+    }
+  })()
   const [uploading, setUploading] = useState(false)
 
   // Listen to messages from the iframe
@@ -208,7 +221,7 @@ const InvoiceBuilder = ({ onBack }: Props) => {
           </div>
         )}
         <iframe 
-          src="/template_dokument/Invoice _ Tagihan Template.html?v=20260612-4" 
+          src={iframeSrc} 
           style={{ width: '100%', height: '100%', border: 'none', background: 'white' }}
           onLoad={() => setLoading(false)}
           title="Invoice Builder"

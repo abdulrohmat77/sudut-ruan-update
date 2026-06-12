@@ -171,3 +171,29 @@
   animation: slide-up 0.25s ease-out;
 }
 
+
+
+/* ── Document builder (Proposal/SPK) — responsive grid ───────── */
+.doc-builder-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 560px);
+  gap: 20px;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+.doc-builder-aside {
+  position: sticky;
+  top: 0;
+  align-self: start;
+}
+@media (max-width: 1024px) {
+  .doc-builder-grid {
+    grid-template-columns: 1fr;
+  }
+  .doc-builder-aside {
+    position: static;
+  }
+  .doc-builder-aside .doc-preview-frame {
+    height: 70vh !important;
+  }
+}

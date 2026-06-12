@@ -18,7 +18,7 @@ import LoginPage from './pages/LoginPage'
 import InvoiceBuilder from './pages/InvoiceBuilder'
 import SpkBuilder from './pages/SpkBuilder'
 import ProposalBuilder from './pages/ProposalBuilder'
-import { SpkPrefill } from './services/spkData'
+import { SpkPrefill, InvoicePrefill } from './services/spkData'
 import { supabase, AIConfigService } from './services/supabaseClient'
 import { authService } from './services/auth'
 import { playNotificationSound, primeAudio, showBrowserNotification } from './services/notify'
@@ -102,7 +102,15 @@ function App() {
   const [authed, setAuthed] = useState<boolean>(() => authService.isAuthenticated())
   const [currentPage, setCurrentPage] = useState<PageType>('dashboard')
   const [spkPrefill, setSpkPrefill] = useState<SpkPrefill | null>(null)
+  const [invoicePrefill, setInvoicePrefill] = useState<InvoicePrefill | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => localStorage.getItem('sidebar_collapsed') === '1')
+  const toggleSidebarCollapse = () =>
+    setSidebarCollapsed((c) => {
+      const next = !c
+      localStorage.setItem('sidebar_collapsed', next ? '1' : '0')
+      return next
+    })
   const [chatBadge, setChatBadge] = useState(0)
   const [logo, setLogo] = useState<string>('')
   
@@ -276,19 +284,23 @@ function App() {
       case 'estimator':
         return <Estimator onCreateSpk={(p) => { setSpkPrefill(p); setCurrentPage('spk-builder') }} />
       case 'documents':
-        return <Documents onNavigate={(p) => { if (p === 'spk-builder') setSpkPrefill(null); setCurrentPage(p) }} />
+        return <Documents
+          onNavigate={(p) => { if (p === 'spk-builder') setSpkPrefill(null); if (p === 'invoice-builder') setInvoicePrefill(null); setCurrentPage(p) }}
+          onContinueToSpk={(p) => { setSpkPrefill(p); setCurrentPage('spk-builder') }}
+          onContinueToInvoice={(p) => { setInvoicePrefill(p); setCurrentPage('invoice-builder') }}
+        />
       case 'finance':
-        return <Finance onNavigate={setCurrentPage} />
+        return <Finance onNavigate={(p) => { if (p === 'invoice-builder') setInvoicePrefill(null); setCurrentPage(p) }} />
       case 'projects':
         return <Projects />
       case 'ai-studio':
         return <AIStudio />
       case 'invoice-builder':
-        return <InvoiceBuilder onBack={() => setCurrentPage('documents')} />
+        return <InvoiceBuilder prefill={invoicePrefill} onBack={() => setCurrentPage('documents')} />
       case 'spk-builder':
-        return <SpkBuilder prefill={spkPrefill} onBack={() => setCurrentPage('documents')} />
+        return <SpkBuilder prefill={spkPrefill} onBack={() => setCurrentPage('documents')} onCreateInvoice={(p) => { setInvoicePrefill(p); setCurrentPage('invoice-builder') }} />
       case 'proposal-builder':
-        return <ProposalBuilder onBack={() => setCurrentPage('documents')} />
+        return <ProposalBuilder onBack={() => setCurrentPage('documents')} onCreateSpk={(p) => { setSpkPrefill(p); setCurrentPage('spk-builder') }} />
       case 'analytics':
         return <Analytics />
       case 'automation':
@@ -313,8 +325,10 @@ function App() {
         userEmail={session?.email}
         onLogout={handleLogout}
         logo={logo}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={toggleSidebarCollapse}
       />
-      <main className="md:ml-[264px] h-full flex flex-col min-h-0">
+      <main className={`${sidebarCollapsed ? 'md:ml-[76px]' : 'md:ml-[264px]'} h-full flex flex-col min-h-0 transition-[margin] duration-300`}>
         <TopBar
           title={pageTitles[currentPage]}
           onMobileMenuClick={() => setIsSidebarOpen(true)}
