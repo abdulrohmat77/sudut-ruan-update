@@ -20,6 +20,9 @@ import SpkBuilder from './pages/SpkBuilder'
 import ProposalBuilder from './pages/ProposalBuilder'
 import CustomerCRM from './pages/CustomerCRM'
 import ProjectControl from './pages/ProjectControl'
+import Reporting from './pages/Reporting'
+import DesignMonitoring from './pages/DesignMonitoring'
+import Planning from './pages/Planning'
 import { SpkPrefill, InvoicePrefill } from './services/spkData'
 import { supabase, AIConfigService } from './services/supabaseClient'
 import { authService } from './services/auth'
@@ -36,6 +39,9 @@ export type PageType =
   | 'finance'
   | 'projects'
   | 'project-control'
+  | 'reporting'
+  | 'design-monitoring'
+  | 'planning'
   | 'ai-studio'
   | 'analytics'
   | 'automation'
@@ -54,6 +60,9 @@ const pageTitles: Record<PageType, string> = {
   finance: 'Finance',
   projects: 'Projects',
   'project-control': 'Project Control',
+  reporting: 'Reporting',
+  'design-monitoring': 'Design Monitoring',
+  planning: 'Planning & Scheduling',
   'ai-studio': 'AI Studio',
   analytics: 'Analitik & KPI',
   automation: 'Pusat Automasi',
@@ -303,6 +312,12 @@ function App() {
         return <Projects />
       case 'project-control':
         return <ProjectControl />
+      case 'reporting':
+        return <Reporting />
+      case 'design-monitoring':
+        return <DesignMonitoring />
+      case 'planning':
+        return <Planning />
       case 'ai-studio':
         return <AIStudio />
       case 'invoice-builder':

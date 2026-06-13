@@ -14,6 +14,9 @@ import {
   Bot,
   Sparkles,
   HardHat,
+  ClipboardList,
+  Compass,
+  CalendarRange,
   ChevronsLeft,
   ChevronsRight
 } from 'lucide-react'
@@ -68,6 +71,19 @@ const DEFAULT_SECTIONS: MenuSection[] = [
     ],
   },
   {
+    title: 'DELIVERY',
+    items: [
+      { id: 'design-monitoring', icon: <Compass size={20} />, label: 'Design Monitoring' },
+      { id: 'planning', icon: <CalendarRange size={20} />, label: 'Planning & Scheduling' },
+    ],
+  },
+  {
+    title: 'REPORTING',
+    items: [
+      { id: 'reporting', icon: <ClipboardList size={20} />, label: 'Reporting' },
+    ],
+  },
+  {
     title: 'EKSEKUSI',
     items: [
       { id: 'projects', icon: <FolderKanban size={20} />, label: 'Projects' },
@@ -91,8 +107,17 @@ const DEFAULT_SECTIONS: MenuSection[] = [
 ]
 
 // Load saved order per section from localStorage
+const SIDEBAR_VERSION = '2' // bump this when menu structure changes
 function loadSectionOrder(): Record<string, PageType[]> {
   try {
+    const ver = localStorage.getItem('sidebar_version')
+    if (ver !== SIDEBAR_VERSION) {
+      // Menu structure changed — reset customizations
+      localStorage.removeItem('sidebar_section_order')
+      localStorage.removeItem('sidebar_hidden')
+      localStorage.setItem('sidebar_version', SIDEBAR_VERSION)
+      return {}
+    }
     const raw = localStorage.getItem('sidebar_section_order')
     if (raw) return JSON.parse(raw)
   } catch { /* ignore */ }
@@ -106,7 +131,12 @@ function saveSectionOrder(data: Record<string, PageType[]>) {
 function loadHidden(): Set<PageType> {
   try {
     const raw = localStorage.getItem('sidebar_hidden')
-    if (raw) return new Set(JSON.parse(raw) as PageType[])
+    if (raw) {
+      // Only keep IDs that actually exist in DEFAULT_SECTIONS
+      const allIds = new Set(DEFAULT_SECTIONS.flatMap((s) => s.items.map((i) => i.id)))
+      const parsed = JSON.parse(raw) as string[]
+      return new Set(parsed.filter((id) => allIds.has(id as PageType)) as PageType[])
+    }
   } catch { /* ignore */ }
   return new Set()
 }

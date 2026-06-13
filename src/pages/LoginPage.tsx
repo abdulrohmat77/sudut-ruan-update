@@ -27,8 +27,9 @@ const BrandMark: React.FC<{ size?: number }> = ({ size = 28 }) => (
 )
 
 const LoginPage: React.FC<Props> = ({ onSuccess }) => {
-  const [email, setEmail] = useState(authService.defaultEmail)
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState(() => localStorage.getItem('sra_remember_email') || authService.defaultEmail)
+  const [password, setPassword] = useState(() => localStorage.getItem('sra_remember_pass') || '')
+  const [rememberMe, setRememberMe] = useState(() => !!localStorage.getItem('sra_remember_email'))
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -52,6 +53,14 @@ const LoginPage: React.FC<Props> = ({ onSuccess }) => {
     try {
       const result = await authService.login(email, password)
       if (result.ok) {
+        // Save or clear remember me
+        if (rememberMe) {
+          localStorage.setItem('sra_remember_email', email)
+          localStorage.setItem('sra_remember_pass', password)
+        } else {
+          localStorage.removeItem('sra_remember_email')
+          localStorage.removeItem('sra_remember_pass')
+        }
         onSuccess()
       } else {
         setError(result.error || 'Gagal masuk.')
@@ -171,6 +180,16 @@ const LoginPage: React.FC<Props> = ({ onSuccess }) => {
                 {error}
               </div>
             )}
+
+            <label className="flex items-center gap-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded border-white/20 bg-white/[0.06] accent-[#3DB87A]"
+              />
+              <span className="text-[12.5px] text-white/50">Ingat Saya</span>
+            </label>
 
             <button
               type="submit"

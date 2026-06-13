@@ -501,6 +501,218 @@ export const PmisInvoiceService = {
 }
 
 // ============================================================
+// PMIS Task Service
+// ============================================================
+export interface DBPmisTask {
+  id: string
+  project_id: string
+  title: string
+  description: string | null
+  status: 'todo' | 'in_progress' | 'done'
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export const PmisTaskService = {
+  async getAll(): Promise<DBPmisTask[]> {
+    const { data, error } = await supabase
+      .from('pmis_tasks')
+      .select('*')
+      .order('sort_order', { ascending: true })
+    if (error) { console.error('pmis_tasks getAll error:', error); return [] }
+    return data || []
+  },
+
+  async getByProject(projectId: string): Promise<DBPmisTask[]> {
+    const { data, error } = await supabase
+      .from('pmis_tasks')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('sort_order', { ascending: true })
+    if (error) return []
+    return data || []
+  },
+
+  async insert(task: { project_id: string; title: string; description?: string }) {
+    const { data, error } = await supabase
+      .from('pmis_tasks')
+      .insert({ ...task, status: 'todo', updated_at: new Date().toISOString() })
+      .select()
+      .single()
+    if (error) console.error('pmis_tasks insert error:', error)
+    return { data, error }
+  },
+
+  async updateStatus(id: string, status: 'todo' | 'in_progress' | 'done') {
+    const { error } = await supabase
+      .from('pmis_tasks')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', id)
+    if (error) console.error('pmis_tasks updateStatus error:', error)
+    return { error }
+  },
+
+  async delete(id: string) {
+    const { error } = await supabase.from('pmis_tasks').delete().eq('id', id)
+    if (error) console.error('pmis_tasks delete error:', error)
+    return { error }
+  },
+}
+
+// ============================================================
+// PMIS Report Services (Daily / Weekly / Monthly)
+// ============================================================
+export interface DBPmisDailyReport {
+  id: string
+  project_id: string
+  report_date: string
+  weather: string | null
+  manpower_count: number
+  work_summary: string | null
+  issues: string | null
+  next_day_plan: string | null
+  progress_percent: number | null
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export interface DBPmisWeeklyReport {
+  id: string
+  project_id: string
+  week_start: string
+  week_end: string
+  summary: string | null
+  planned_progress: number | null
+  actual_progress: number | null
+  variance: number | null
+  status: string
+  created_at: string
+}
+
+export interface DBPmisMonthlyReport {
+  id: string
+  project_id: string
+  month: string
+  executive_summary: string | null
+  financial_summary: Record<string, unknown>
+  schedule_summary: Record<string, unknown>
+  status: string
+  created_at: string
+}
+
+export const PmisDailyReportService = {
+  async getAll(): Promise<DBPmisDailyReport[]> {
+    const { data, error } = await supabase.from('pmis_daily_reports').select('*').order('report_date', { ascending: false })
+    if (error) { console.error('pmis_daily_reports getAll error:', error); return [] }
+    return data || []
+  },
+  async getByProject(projectId: string): Promise<DBPmisDailyReport[]> {
+    const { data, error } = await supabase.from('pmis_daily_reports').select('*').eq('project_id', projectId).order('report_date', { ascending: false })
+    if (error) return []
+    return data || []
+  },
+  async insert(report: Omit<DBPmisDailyReport, 'id' | 'created_at' | 'updated_at'>) {
+    const { data, error } = await supabase.from('pmis_daily_reports').insert({ ...report, updated_at: new Date().toISOString() }).select().single()
+    if (error) console.error('pmis_daily_reports insert error:', error)
+    return { data, error }
+  },
+  async delete(id: string) {
+    const { error } = await supabase.from('pmis_daily_reports').delete().eq('id', id)
+    return { error }
+  },
+}
+
+export const PmisWeeklyReportService = {
+  async getAll(): Promise<DBPmisWeeklyReport[]> {
+    const { data, error } = await supabase.from('pmis_weekly_reports').select('*').order('week_start', { ascending: false })
+    if (error) { console.error('pmis_weekly_reports getAll error:', error); return [] }
+    return data || []
+  },
+  async getByProject(projectId: string): Promise<DBPmisWeeklyReport[]> {
+    const { data, error } = await supabase.from('pmis_weekly_reports').select('*').eq('project_id', projectId).order('week_start', { ascending: false })
+    if (error) return []
+    return data || []
+  },
+  async insert(report: Omit<DBPmisWeeklyReport, 'id' | 'created_at'>) {
+    const { data, error } = await supabase.from('pmis_weekly_reports').insert(report).select().single()
+    if (error) console.error('pmis_weekly_reports insert error:', error)
+    return { data, error }
+  },
+  async delete(id: string) {
+    const { error } = await supabase.from('pmis_weekly_reports').delete().eq('id', id)
+    return { error }
+  },
+}
+
+export const PmisMonthlyReportService = {
+  async getAll(): Promise<DBPmisMonthlyReport[]> {
+    const { data, error } = await supabase.from('pmis_monthly_reports').select('*').order('month', { ascending: false })
+    if (error) { console.error('pmis_monthly_reports getAll error:', error); return [] }
+    return data || []
+  },
+  async getByProject(projectId: string): Promise<DBPmisMonthlyReport[]> {
+    const { data, error } = await supabase.from('pmis_monthly_reports').select('*').eq('project_id', projectId).order('month', { ascending: false })
+    if (error) return []
+    return data || []
+  },
+  async insert(report: Omit<DBPmisMonthlyReport, 'id' | 'created_at'>) {
+    const { data, error } = await supabase.from('pmis_monthly_reports').insert(report).select().single()
+    if (error) console.error('pmis_monthly_reports insert error:', error)
+    return { data, error }
+  },
+  async delete(id: string) {
+    const { error } = await supabase.from('pmis_monthly_reports').delete().eq('id', id)
+    return { error }
+  },
+}
+
+// ============================================================
+// PMIS Deliverables Service (Design Monitoring)
+// ============================================================
+export interface DBPmisDeliverable {
+  id: string
+  project_id: string
+  phase_key: string
+  title: string
+  category: string
+  status: string
+  due_date: string | null
+  notes: string | null
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export const PmisDeliverableService = {
+  async getAll(): Promise<DBPmisDeliverable[]> {
+    const { data, error } = await supabase.from('pmis_deliverables').select('*').order('sort_order', { ascending: true })
+    if (error) { console.error('pmis_deliverables getAll error:', error); return [] }
+    return data || []
+  },
+  async getByProject(projectId: string): Promise<DBPmisDeliverable[]> {
+    const { data, error } = await supabase.from('pmis_deliverables').select('*').eq('project_id', projectId).order('sort_order', { ascending: true })
+    if (error) return []
+    return data || []
+  },
+  async insert(d: { project_id: string; phase_key: string; title: string; category?: string; due_date?: string }) {
+    const { data, error } = await supabase.from('pmis_deliverables').insert({ ...d, status: 'todo', updated_at: new Date().toISOString() }).select().single()
+    if (error) console.error('pmis_deliverables insert error:', error)
+    return { data, error }
+  },
+  async updateStatus(id: string, status: string) {
+    const { error } = await supabase.from('pmis_deliverables').update({ status, updated_at: new Date().toISOString() }).eq('id', id)
+    if (error) console.error('pmis_deliverables updateStatus error:', error)
+    return { error }
+  },
+  async delete(id: string) {
+    const { error } = await supabase.from('pmis_deliverables').delete().eq('id', id)
+    return { error }
+  },
+}
+
+// ============================================================
 // AI Config Service
 // ============================================================
 export interface DBAiSummary {

@@ -1,355 +1,337 @@
-import { useEffect, useMemo, useState } from 'react'
-import { T, Bars } from '../components/AcosUI'
-import { ClientService, DBClient, DocumentService, DBDocument } from '../services/supabaseClient'
-import {
-  FolderKanban, Loader2, RefreshCw, ListTodo, Wallet, Plus, Trash2, CheckCircle2, Circle,
-} from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { T, Panel, Btn, ProgBar, Tag } from '../components/AcosUI'
+import { PmisProjectService, PmisTaskService, DBPmisProject, DBPmisTask } from '../services/supabaseClient'
+import { Plus, Trash2, CheckCircle2, Circle, Loader2, FolderKanban } from 'lucide-react'
 
-// ── Pipeline lifecycle (mengikuti alur build-space-ai: Lead → … → Selesai) ──
-interface Stage {
-  key: string
-  label: string
-  color: string
-  match: string[]
+const statusColor: Record<string, string> = { planning: T.dim, active: T.sky, on_hold: T.amber, completed: T.green, cancelled: T.red }
+const statusLabel: Record<string, string> = { planning: 'Planning', active: 'Active', on_hold: 'On Hold', completed: 'Selesai', cancelled: 'Cancelled' }
+
+const fmtRp = (v: number) => {
+  if (!v) return 'Rp 0'
+  if (v >= 1e9) return `Rp ${(v / 1e9).toFixed(1)}M`
+  if (v >= 1e6) return `Rp ${Math.round(v / 1e6)}jt`
+  return `Rp ${new Intl.NumberFormat('id-ID').format(v)}`
 }
-
-const STAGES: Stage[] = [
-  { key: 'lead', label: 'Lead', color: '#9DBAD2', match: ['lead', 'baru', 'new'] },
-  { key: 'estimasi', label: 'Estimasi', color: '#4AB3D8', match: ['estimasi', 'estimation', 'qualified'] },
-  { key: 'proposal', label: 'Proposal', color: '#5FD4FF', match: ['proposal'] },
-  { key: 'negosiasi', label: 'Negosiasi', color: '#FBBF24', match: ['negosiasi', 'negotiation'] },
-  { key: 'spk', label: 'SPK / Kontrak', color: '#A78BFA', match: ['spk', 'kontrak', 'approved', 'deal', 'won'] },
-  { key: 'berjalan', label: 'Berjalan', color: '#34D399', match: ['berjalan', 'design', 'construction', 'progress', 'project'] },
-  { key: 'selesai', label: 'Selesai', color: '#16a34a', match: ['selesai', 'completed', 'done'] },
-]
-
-const formatIDRShort = (n: number) => {
-  if (!n) return 'Rp 0'
-  if (n >= 1e9) return `Rp ${(n / 1e9).toFixed(1)} M`
-  if (n >= 1e6) return `Rp ${Math.round(n / 1e6)} jt`
-  if (n >= 1e3) return `Rp ${Math.round(n / 1e3)} rb`
-  return `Rp ${n}`
-}
-const formatIDR = (n: number) =>
-  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Number.isFinite(n) ? n : 0)
-
-const stageOf = (status: string | null): string => {
-  const s = (status || '').toLowerCase().trim()
-  const found = STAGES.find((st) => st.match.some((m) => s.includes(m)))
-  return found ? found.key : 'lead'
-}
-
-const amountOf = (doc: DBDocument): number => {
-  const d = (doc.data || {}) as Record<string, unknown>
-  const num = (v: unknown) => (typeof v === 'number' ? v : typeof v === 'string' ? parseFloat(v) || 0 : 0)
-  return num(d.total) || num(d.amount) || num(d.totalAvg) || num(d.contractValue) || 0
-}
-
-// ── Tasks (disimpan lokal — tidak butuh tabel Supabase) ──
-interface Task {
-  id: string
-  title: string
-  done: boolean
-  project: string
-  createdAt: string
-}
-const TASKS_KEY = 'sra_project_tasks'
-const loadTasks = (): Task[] => {
-  try {
-    return JSON.parse(localStorage.getItem(TASKS_KEY) || '[]')
-  } catch {
-    return []
-  }
-}
-
-type Tab = 'board' | 'tasks' | 'revenue'
 
 const Projects = () => {
-  const [clients, setClients] = useState<DBClient[]>([])
-  const [invoices, setInvoices] = useState<DBDocument[]>([])
+  const [projects, setProjects] = useState<DBPmisProject[]>([])
+  const [tasks, setTasks] = useState<DBPmisTask[]>([])
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<Tab>('board')
+  const [selProject, setSelProject] = useState<string | null>(null)
 
-  // tasks
-  const [tasks, setTasks] = useState<Task[]>(() => loadTasks())
-  const [newTask, setNewTask] = useState('')
-  const [newTaskProject, setNewTaskProject] = useState('')
+  // Add project form
+  const [showAddProject, setShowAddProject] = useState(false)
+  const [pForm, setPForm] = useState({ code: '', name: '', client_name: '', location: '', contract_value: '', status: 'active', description: '', owner_name: '', owner_email: '', owner_wa: '' })
+  const [savingP, setSavingP] = useState(false)
 
-  useEffect(() => {
-    localStorage.setItem(TASKS_KEY, JSON.stringify(tasks))
-  }, [tasks])
+  // Auto-generate code
+  const autoCode = () => {
+    const year = new Date().getFullYear()
+    const num = String(projects.length + 1).padStart(3, '0')
+    return `SRA-${year}-${num}`
+  }
+
+  // Add task form
+  const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [savingT, setSavingT] = useState(false)
 
   const load = async () => {
     setLoading(true)
-    const [c, docs] = await Promise.all([ClientService.getAll(), DocumentService.getAll()])
-    setClients(c)
-    setInvoices(docs.filter((d) => d.type === 'invoice'))
+    const [p, t] = await Promise.all([PmisProjectService.getAll(), PmisTaskService.getAll()])
+    setProjects(p)
+    setTasks(t)
+    if (p.length > 0 && !selProject) setSelProject(p[0].id)
     setLoading(false)
   }
+  useEffect(() => { load() }, [])
 
-  useEffect(() => {
-    load()
-  }, [])
-
-  const grouped = useMemo(() => {
-    const g: Record<string, DBClient[]> = {}
-    STAGES.forEach((s) => (g[s.key] = []))
-    clients.forEach((c) => {
-      const key = stageOf(c.status)
-      ;(g[key] || g.lead).push(c)
-    })
-    return g
-  }, [clients])
-
-  const totalValue = useMemo(() => clients.reduce((sum, c) => sum + (c.rab_avg || c.fee_avg || 0), 0), [clients])
-
-  // ── Revenue calc ──
-  const revenue = useMemo(() => {
-    let total = 0
-    let paid = 0
-    invoices.forEach((d) => {
-      if (d.status === 'rejected') return
-      const a = amountOf(d)
-      total += a
-      if (d.status === 'accepted') paid += a
-    })
-    // monthly paid (6 bulan terakhir)
-    const now = new Date()
-    const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
-    const months: { key: string; m: string; v: number }[] = []
-    for (let i = 5; i >= 0; i--) {
-      const dt = new Date(now.getFullYear(), now.getMonth() - i, 1)
-      months.push({ key: `${dt.getFullYear()}-${dt.getMonth()}`, m: BULAN[dt.getMonth()], v: 0 })
-    }
-    invoices.forEach((d) => {
-      if (d.status !== 'accepted') return
-      const dt = new Date(d.created_at)
-      const key = `${dt.getFullYear()}-${dt.getMonth()}`
-      const bucket = months.find((mo) => mo.key === key)
-      if (bucket) bucket.v += Math.round(amountOf(d) / 1e6)
-    })
-    return { total, paid, outstanding: total - paid, months }
-  }, [invoices])
-
-  const activeProjects = useMemo(
-    () => clients.filter((c) => ['spk', 'berjalan'].includes(stageOf(c.status))).length,
-    [clients],
-  )
-
-  const addTask = () => {
-    const title = newTask.trim()
-    if (!title) return
-    setTasks((prev) => [
-      { id: `t-${Date.now()}`, title, done: false, project: newTaskProject.trim(), createdAt: new Date().toISOString() },
-      ...prev,
-    ])
-    setNewTask('')
-    setNewTaskProject('')
+  // Progress dihitung dari tugas done / total per project
+  const progressOf = (projectId: string) => {
+    const pt = tasks.filter((t) => t.project_id === projectId)
+    if (pt.length === 0) return 0
+    return Math.round((pt.filter((t) => t.status === 'done').length / pt.length) * 100)
   }
-  const toggleTask = (id: string) => setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)))
-  const removeTask = (id: string) => setTasks((prev) => prev.filter((t) => t.id !== id))
 
-  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: 'board', label: 'Papan Proyek', icon: <FolderKanban size={16} /> },
-    { id: 'tasks', label: 'Tugas', icon: <ListTodo size={16} /> },
-    { id: 'revenue', label: 'Pendapatan', icon: <Wallet size={16} /> },
-  ]
+  const selectedTasks = tasks.filter((t) => t.project_id === selProject)
+  const selP = projects.find((p) => p.id === selProject)
 
-  const taskDoneCount = tasks.filter((t) => t.done).length
+  const handleAddProject = async () => {
+    if (!pForm.name.trim() || savingP) return
+    setSavingP(true)
+    const code = pForm.code.trim() || autoCode()
+    await PmisProjectService.upsert({
+      code,
+      name: pForm.name.trim(),
+      client_name: pForm.client_name.trim() || null,
+      location: pForm.location.trim() || null,
+      contract_value: Number(pForm.contract_value) || 0,
+      status: pForm.status,
+      description: pForm.description.trim() || null,
+    } as any)
+    setPForm({ code: '', name: '', client_name: '', location: '', contract_value: '', status: 'active', description: '', owner_name: '', owner_email: '', owner_wa: '' })
+    setShowAddProject(false)
+    setSavingP(false)
+    load()
+  }
+
+  const handleAddTask = async () => {
+    if (!newTaskTitle.trim() || !selProject || savingT) return
+    setSavingT(true)
+    await PmisTaskService.insert({ project_id: selProject, title: newTaskTitle.trim() })
+    setNewTaskTitle('')
+    setSavingT(false)
+    // Reload tasks
+    const t = await PmisTaskService.getAll()
+    setTasks(t)
+  }
+
+  const toggleTask = async (task: DBPmisTask) => {
+    const newStatus = task.status === 'done' ? 'todo' : 'done'
+    await PmisTaskService.updateStatus(task.id, newStatus)
+    setTasks((prev) => prev.map((t) => t.id === task.id ? { ...t, status: newStatus } : t))
+    // Update progress on project
+    const pt = tasks.map((t) => t.id === task.id ? { ...t, status: newStatus } : t).filter((t) => t.project_id === task.project_id)
+    const pct = pt.length > 0 ? Math.round((pt.filter((t) => t.status === 'done').length / pt.length) * 100) : 0
+    const proj = projects.find((p) => p.id === task.project_id)
+    if (proj) {
+      PmisProjectService.upsert({ code: proj.code, name: proj.name, progress_percent: pct })
+      setProjects((prev) => prev.map((p) => p.id === task.project_id ? { ...p, progress_percent: pct } : p))
+    }
+  }
+
+  const deleteTask = async (id: string) => {
+    await PmisTaskService.delete(id)
+    setTasks((prev) => prev.filter((t) => t.id !== id))
+  }
+
+  const deleteProject = async (id: string) => {
+    await PmisProjectService.delete(id)
+    setProjects((prev) => prev.filter((p) => p.id !== id))
+    if (selProject === id) setSelProject(projects.find((p) => p.id !== id)?.id || null)
+    setTasks((prev) => prev.filter((t) => t.project_id !== id))
+  }
+
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '9px 12px', background: T.inset, border: `1px solid ${T.line}`, borderRadius: 8, color: T.txt, fontSize: 13, fontFamily: T.font, outline: 'none' }
 
   return (
-    <div style={{ padding: '16px 20px', height: '100%', display: 'flex', flexDirection: 'column', background: T.bgGrad }}>
+    <div style={{ padding: 22, height: '100%', overflowY: 'auto', background: T.bgGrad }}>
       {/* Header */}
-      <div style={{ marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 12, flexShrink: 0 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: T.txt, margin: 0, letterSpacing: -0.5, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: T.txt, margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
             <FolderKanban size={22} color={T.sky} /> Projects
           </h1>
-          <p style={{ fontSize: 13, color: T.dim, margin: '4px 0 0' }}>
-            Papan proyek, tugas, & pendapatan — {clients.length} klien · {formatIDRShort(totalValue)}
-          </p>
+          <div style={{ fontSize: 13, color: T.dim, marginTop: 4 }}>{projects.length} proyek · Progress dihitung otomatis dari tugas</div>
         </div>
-        <button
-          onClick={load}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 16px', background: T.inset, color: T.txt, borderRadius: 10, border: `1px solid ${T.line}`, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
-          onMouseEnter={(e) => (e.currentTarget.style.borderColor = T.sky)}
-          onMouseLeave={(e) => (e.currentTarget.style.borderColor = T.line)}
-        >
-          <RefreshCw size={15} /> Refresh
-        </button>
-      </div>
-
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexShrink: 0 }}>
-        {tabs.map((tb) => {
-          const on = tab === tb.id
-          return (
-            <button
-              key={tb.id}
-              onClick={() => setTab(tb.id)}
-              style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 14px', borderRadius: 9, border: `1px solid ${on ? T.sky : T.line}`, background: on ? `${T.sky}18` : 'transparent', color: on ? T.sky : T.dim, fontWeight: 700, fontSize: 12.5, cursor: 'pointer' }}
-            >
-              {tb.icon}{tb.label}
-              {tb.id === 'tasks' && tasks.length > 0 && (
-                <span style={{ fontSize: 10, fontWeight: 800, background: on ? T.sky : T.line, color: on ? '#03203a' : T.dim, padding: '1px 6px', borderRadius: 99 }}>{taskDoneCount}/{tasks.length}</span>
-              )}
-            </button>
-          )
-        })}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Btn v="ghost" size="sm" icon="RefreshCw" onClick={load}>Refresh</Btn>
+          <Btn v="primary" size="sm" icon="Plus" onClick={() => setShowAddProject(true)}>Tambah Project</Btn>
+        </div>
       </div>
 
       {loading ? (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Loader2 size={26} className="animate-spin" style={{ color: T.sky }} />
-        </div>
-      ) : tab === 'board' ? (
-        // ── PAPAN PROYEK (Kanban) ──
-        <div className="custom-scrollbar" style={{ flex: 1, overflowX: 'auto', overflowY: 'hidden', display: 'flex', gap: 12, paddingBottom: 8 }}>
-          {STAGES.map((stage) => {
-            const items = grouped[stage.key] || []
-            const colValue = items.reduce((s, c) => s + (c.rab_avg || c.fee_avg || 0), 0)
-            const stageIdx = STAGES.findIndex((s) => s.key === stage.key)
-            const progress = Math.round(((stageIdx + 1) / STAGES.length) * 100)
-            return (
-              <div key={stage.key} style={{ minWidth: 268, width: 268, flexShrink: 0, display: 'flex', flexDirection: 'column', height: '100%' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, padding: '0 4px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: stage.color }} />
-                    <span style={{ fontSize: 11, fontWeight: 800, color: T.txt, textTransform: 'uppercase', letterSpacing: 0.5 }}>{stage.label}</span>
-                  </div>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: T.dim }}>{items.length}</span>
-                </div>
-                <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, background: T.inset, border: `1px solid ${T.line}`, borderRadius: 12, padding: 8, minHeight: 120 }}>
-                  {items.length === 0 ? (
-                    <div style={{ padding: 16, textAlign: 'center', color: T.dim, fontSize: 11 }}>—</div>
-                  ) : (
-                    items.map((c) => {
-                      const value = c.rab_avg || c.fee_avg || 0
-                      return (
-                        <div key={c.id} style={{ background: T.panel, border: `1px solid ${T.line}`, borderRadius: 10, padding: 12 }}>
-                          <div style={{ fontFamily: T.mono, fontSize: 10, color: T.dim }}>{c.building_type || c.source || 'Klien'}</div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: T.txt, marginTop: 2 }}>{c.name || 'Tanpa nama'}</div>
-                          {c.tier && <div style={{ fontSize: 11, color: T.dim, marginTop: 1 }}>{c.tier}{c.area_sqm ? ` · ${c.area_sqm} m²` : ''}</div>}
-                          <div style={{ fontFamily: T.mono, fontSize: 12, fontWeight: 700, color: T.sky, marginTop: 8 }}>{formatIDRShort(value)}</div>
-                          <div style={{ height: 5, borderRadius: 999, background: T.track, overflow: 'hidden', marginTop: 8 }}>
-                            <div style={{ width: `${progress}%`, height: '100%', background: stage.color, borderRadius: 999 }} />
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: T.dim, marginTop: 4 }}>
-                            <span>{c.source || '—'}</span><span>{progress}%</span>
-                          </div>
-                        </div>
-                      )
-                    })
-                  )}
-                </div>
-                <div style={{ fontSize: 10.5, color: T.dim, textAlign: 'right', marginTop: 6, paddingRight: 4 }}>{formatIDRShort(colValue)}</div>
-              </div>
-            )
-          })}
-        </div>
-      ) : tab === 'tasks' ? (
-        // ── TUGAS ──
-        <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto' }}>
-          <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {/* Add task */}
-            <div style={{ background: T.panel, border: `1px solid ${T.line}`, borderRadius: 14, padding: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <input
-                value={newTask}
-                onChange={(e) => setNewTask(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addTask()}
-                placeholder="Tugas baru… (mis. Survey lokasi Villa Wijaya)"
-                style={{ flex: '2 1 240px', padding: '10px 12px', background: T.inset, border: `1px solid ${T.line}`, borderRadius: 8, color: T.txt, fontSize: 13, fontFamily: T.font, outline: 'none' }}
-              />
-              <input
-                value={newTaskProject}
-                onChange={(e) => setNewTaskProject(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addTask()}
-                placeholder="Proyek (opsional)"
-                style={{ flex: '1 1 140px', padding: '10px 12px', background: T.inset, border: `1px solid ${T.line}`, borderRadius: 8, color: T.txt, fontSize: 13, fontFamily: T.font, outline: 'none' }}
-              />
-              <button
-                onClick={addTask}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 16px', background: T.sky, color: '#03203a', borderRadius: 8, border: 'none', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
-              >
-                <Plus size={16} /> Tambah
-              </button>
-            </div>
-
-            {tasks.length === 0 ? (
-              <div style={{ background: T.panel, border: `1px solid ${T.line}`, borderRadius: 14, padding: 40, textAlign: 'center', color: T.dim, fontSize: 13 }}>
-                <ListTodo size={28} style={{ margin: '0 auto 8px', display: 'block', opacity: 0.6 }} />
-                Belum ada tugas. Tambahkan tugas pertama di atas.
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {tasks.map((t) => (
-                  <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: T.panel, border: `1px solid ${T.line}`, borderRadius: 10, padding: '10px 14px' }}>
-                    <button onClick={() => toggleTask(t.id)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', color: t.done ? T.green : T.dim }}>
-                      {t.done ? <CheckCircle2 size={20} /> : <Circle size={20} />}
-                    </button>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: t.done ? T.dim : T.txt, textDecoration: t.done ? 'line-through' : 'none' }}>{t.title}</div>
-                      {t.project && <div style={{ fontSize: 11, color: T.dim, marginTop: 1 }}>{t.project}</div>}
+        <div style={{ padding: 60, textAlign: 'center' }}><Loader2 size={24} className="animate-spin" style={{ color: T.sky, margin: '0 auto' }} /></div>
+      ) : projects.length === 0 ? (
+        <Panel pad={40}>
+          <div style={{ textAlign: 'center', color: T.dim, fontSize: 13 }}>
+            <FolderKanban size={32} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
+            <div style={{ fontWeight: 700, color: T.sub, marginBottom: 8 }}>Belum ada project</div>
+            Klik "Tambah Project" untuk membuat proyek pertama. Jalankan <code>pmis_projects.sql</code> + <code>pmis_tasks.sql</code> di Supabase SQL Editor bila belum.
+            <div style={{ marginTop: 14 }}><Btn v="primary" size="sm" icon="Plus" onClick={() => setShowAddProject(true)}>Tambah Project</Btn></div>
+          </div>
+        </Panel>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 16, alignItems: 'start' }}>
+          {/* LEFT — Project List */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {projects.map((p) => {
+              const pct = progressOf(p.id)
+              const isSel = p.id === selProject
+              const taskCount = tasks.filter((t) => t.project_id === p.id).length
+              const doneCount = tasks.filter((t) => t.project_id === p.id && t.status === 'done').length
+              return (
+                <div key={p.id} onClick={() => setSelProject(p.id)} style={{ background: isSel ? `${T.sky}12` : T.panel, border: `1px solid ${isSel ? T.sky : T.line}`, borderRadius: 12, padding: 14, cursor: 'pointer', borderLeft: `3px solid ${isSel ? T.sky : 'transparent'}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                    <div>
+                      <div style={{ fontSize: 10, fontFamily: T.mono, color: T.dim }}>{p.code}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: T.txt, marginTop: 2 }}>{p.name}</div>
                     </div>
-                    <button onClick={() => removeTask(t.id)} title="Hapus" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.dim, display: 'flex' }}
-                      onMouseEnter={(e) => (e.currentTarget.style.color = '#ef4444')}
-                      onMouseLeave={(e) => (e.currentTarget.style.color = T.dim)}
+                    <span style={{ fontSize: 8.5, fontWeight: 900, textTransform: 'uppercase', padding: '3px 8px', borderRadius: 999, background: `${statusColor[p.status] || T.dim}22`, color: statusColor[p.status] || T.dim, border: `1px solid ${statusColor[p.status] || T.dim}55` }}>{statusLabel[p.status] || p.status}</span>
+                  </div>
+                  {p.client_name && <div style={{ fontSize: 11, color: T.dim, marginBottom: 6 }}>{p.client_name}{p.location ? ` · ${p.location}` : ''}</div>}
+                  <ProgBar value={pct} color={T.sky} h={5} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 10.5 }}>
+                    <span style={{ color: T.dim }}>{doneCount}/{taskCount} tugas</span>
+                    <span style={{ color: T.sky, fontWeight: 700, fontFamily: T.mono }}>{pct}%</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* RIGHT — Selected Project Detail + Tasks */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {selP ? (
+              <>
+                {/* Project header */}
+                <Panel pad={18}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 10, fontFamily: T.mono, color: T.dim }}>{selP.code}</div>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: T.txt }}>{selP.name}</div>
+                      <div style={{ fontSize: 12, color: T.dim, marginTop: 4 }}>{selP.client_name || '—'}{selP.location ? ` · ${selP.location}` : ''}</div>
+                    </div>
+                    <button onClick={() => deleteProject(selP.id)} title="Hapus project" style={{ background: 'transparent', border: `1px solid ${T.line}`, borderRadius: 8, padding: 8, cursor: 'pointer', color: T.dim }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = T.red; e.currentTarget.style.borderColor = `${T.red}55` }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = T.dim; e.currentTarget.style.borderColor = T.line }}
                     >
                       <Trash2 size={16} />
                     </button>
                   </div>
-                ))}
-              </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, marginBottom: 12 }}>
+                    <div style={{ background: T.inset, border: `1px solid ${T.line}`, borderRadius: 8, padding: '8px 10px' }}>
+                      <div style={{ fontSize: 9, color: T.dim, textTransform: 'uppercase' }}>Nilai Kontrak</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: T.sky, fontFamily: T.mono, marginTop: 2 }}>{fmtRp(Number(selP.contract_value) || 0)}</div>
+                    </div>
+                    <div style={{ background: T.inset, border: `1px solid ${T.line}`, borderRadius: 8, padding: '8px 10px' }}>
+                      <div style={{ fontSize: 9, color: T.dim, textTransform: 'uppercase' }}>Status</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: statusColor[selP.status] || T.dim, marginTop: 2 }}>{statusLabel[selP.status] || selP.status}</div>
+                    </div>
+                    <div style={{ background: T.inset, border: `1px solid ${T.line}`, borderRadius: 8, padding: '8px 10px' }}>
+                      <div style={{ fontSize: 9, color: T.dim, textTransform: 'uppercase' }}>Progress</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: T.txt, fontFamily: T.mono, marginTop: 2 }}>{progressOf(selP.id)}%</div>
+                    </div>
+                  </div>
+                  <ProgBar value={progressOf(selP.id)} color={T.sky} h={6} />
+                </Panel>
+
+                {/* Tasks */}
+                <Panel pad={18}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: T.txt }}>Tugas ({selectedTasks.filter(t => t.status === 'done').length}/{selectedTasks.length})</span>
+                  </div>
+
+                  {/* Add task */}
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                    <input
+                      value={newTaskTitle}
+                      onChange={(e) => setNewTaskTitle(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
+                      placeholder="Tugas baru..."
+                      style={{ ...inputStyle, flex: 1 }}
+                    />
+                    <button onClick={handleAddTask} disabled={savingT || !newTaskTitle.trim()} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 14px', background: T.sky, color: '#03203a', borderRadius: 8, border: 'none', fontWeight: 700, fontSize: 12, cursor: 'pointer', opacity: savingT ? 0.6 : 1 }}>
+                      <Plus size={14} /> Tambah
+                    </button>
+                  </div>
+
+                  {selectedTasks.length === 0 ? (
+                    <div style={{ padding: 24, textAlign: 'center', color: T.dim, fontSize: 12, border: `1px dashed ${T.line}`, borderRadius: 10 }}>
+                      Belum ada tugas. Tambahkan tugas pertama.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {selectedTasks.map((t) => (
+                        <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: T.inset, border: `1px solid ${T.line}`, borderRadius: 9 }}>
+                          <button onClick={() => toggleTask(t)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', color: t.status === 'done' ? T.green : T.dim }}>
+                            {t.status === 'done' ? <CheckCircle2 size={18} /> : <Circle size={18} />}
+                          </button>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12.5, fontWeight: 600, color: t.status === 'done' ? T.dim : T.txt, textDecoration: t.status === 'done' ? 'line-through' : 'none' }}>{t.title}</div>
+                          </div>
+                          {t.status === 'done' && <Tag color={T.green} style={{ fontSize: 8 }}>Done</Tag>}
+                          <button onClick={() => deleteTask(t.id)} title="Hapus" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.dim, display: 'flex' }}
+                            onMouseEnter={(e) => (e.currentTarget.style.color = '#ef4444')}
+                            onMouseLeave={(e) => (e.currentTarget.style.color = T.dim)}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Panel>
+              </>
+            ) : (
+              <Panel pad={40}>
+                <div style={{ textAlign: 'center', color: T.dim, fontSize: 12 }}>Pilih project di sebelah kiri.</div>
+              </Panel>
             )}
           </div>
         </div>
-      ) : (
-        // ── PENDAPATAN ──
-        <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-              {[
-                { label: 'Total Nilai Proyek', value: formatIDR(totalValue), color: T.sky },
-                { label: 'Pendapatan Terbayar', value: formatIDR(revenue.paid), color: T.green },
-                { label: 'Outstanding', value: formatIDR(revenue.outstanding), color: T.amber },
-                { label: 'Proyek Aktif', value: String(activeProjects), color: T.tint },
-              ].map((k) => (
-                <div key={k.label} style={{ background: T.panel, border: `1px solid ${T.line}`, borderRadius: 14, padding: 16 }}>
-                  <div style={{ fontSize: 10.5, fontWeight: 700, color: T.dim, textTransform: 'uppercase', letterSpacing: 0.6 }}>{k.label}</div>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: k.color, marginTop: 8, letterSpacing: -0.5, fontFamily: T.mono }}>{k.value}</div>
-                </div>
-              ))}
-            </div>
+      )}
 
-            {/* Revenue chart */}
-            <div style={{ background: T.panel, border: `1px solid ${T.line}`, borderRadius: 14, padding: 18 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: T.txt, marginBottom: 14 }}>Pendapatan Terbayar — 6 Bulan (juta Rp)</div>
-              <Bars data={revenue.months} h={160} fmt={(v: number) => `${v}`} />
-            </div>
-
-            {/* Nilai per tahap */}
-            <div style={{ background: T.panel, border: `1px solid ${T.line}`, borderRadius: 14, padding: 18 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: T.txt, marginBottom: 14 }}>Nilai Pipeline per Tahap</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {STAGES.map((s) => {
-                  const items = grouped[s.key] || []
-                  const v = items.reduce((sum, c) => sum + (c.rab_avg || c.fee_avg || 0), 0)
-                  const pct = totalValue > 0 ? Math.round((v / totalValue) * 100) : 0
-                  return (
-                    <div key={s.key}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 4 }}>
-                        <span style={{ color: T.sub, fontWeight: 600 }}>{s.label} <span style={{ color: T.dim }}>· {items.length}</span></span>
-                        <span style={{ fontFamily: T.mono, color: T.txt }}>{formatIDRShort(v)}</span>
-                      </div>
-                      <div style={{ height: 8, borderRadius: 999, background: T.track, overflow: 'hidden' }}>
-                        <div style={{ width: `${pct}%`, height: '100%', background: s.color, borderRadius: 999 }} />
-                      </div>
-                    </div>
-                  )
-                })}
+      {/* Add Project Modal */}
+      {showAddProject && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setShowAddProject(false)}>
+          <Panel pad={24} style={{ width: '100%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto' }} onClick={(e: any) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+              <div>
+                <h3 style={{ fontSize: 18, fontWeight: 800, color: T.txt, margin: 0 }}>Buat Project Baru</h3>
+                <p style={{ fontSize: 12, color: T.dim, margin: '4px 0 0' }}>Isi data dasar proyek. Tahapan SOP akan otomatis dibuat.</p>
               </div>
+              <button onClick={() => setShowAddProject(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.dim, fontSize: 20 }}>×</button>
             </div>
-          </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: T.txt, display: 'block', marginBottom: 6 }}>Kode Proyek</label>
+                  <input style={inputStyle} value={pForm.code} onChange={(e) => setPForm({ ...pForm, code: e.target.value })} placeholder={autoCode()} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: T.txt, display: 'block', marginBottom: 6 }}>Nilai Kontrak (IDR)</label>
+                  <input type="number" style={inputStyle} value={pForm.contract_value} onChange={(e) => setPForm({ ...pForm, contract_value: e.target.value })} placeholder="Rp 0" />
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: T.txt, display: 'block', marginBottom: 6 }}>Nama Proyek</label>
+                <input style={inputStyle} value={pForm.name} onChange={(e) => setPForm({ ...pForm, name: e.target.value })} placeholder="Villa Tropis Ubud" />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: T.txt, display: 'block', marginBottom: 6 }}>Klien</label>
+                  <input style={inputStyle} value={pForm.client_name} onChange={(e) => setPForm({ ...pForm, client_name: e.target.value })} placeholder="Bpk. Budi" />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: T.txt, display: 'block', marginBottom: 6 }}>Lokasi</label>
+                  <input style={inputStyle} value={pForm.location} onChange={(e) => setPForm({ ...pForm, location: e.target.value })} placeholder="Ubud, Bali" />
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: T.txt, display: 'block', marginBottom: 6 }}>Deskripsi</label>
+                <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={3} value={pForm.description} onChange={(e) => setPForm({ ...pForm, description: e.target.value })} placeholder="Deskripsi singkat proyek..." />
+              </div>
+
+              <div style={{ borderTop: `1px solid ${T.line}`, paddingTop: 14 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: T.dim, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 }}>Owner / Klien Penerima Laporan</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: T.txt, display: 'block', marginBottom: 6 }}>Nama Owner</label>
+                    <input style={inputStyle} value={pForm.owner_name} onChange={(e) => setPForm({ ...pForm, owner_name: e.target.value })} placeholder="Nama owner / PIC klien" />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: T.txt, display: 'block', marginBottom: 6 }}>Email Owner</label>
+                      <input type="email" style={inputStyle} value={pForm.owner_email} onChange={(e) => setPForm({ ...pForm, owner_email: e.target.value })} placeholder="owner@example.com" />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: T.txt, display: 'block', marginBottom: 6 }}>WhatsApp Owner</label>
+                      <input style={inputStyle} value={pForm.owner_wa} onChange={(e) => setPForm({ ...pForm, owner_wa: e.target.value })} placeholder="+6281234567890" />
+                    </div>
+                  </div>
+                  <p style={{ fontSize: 11, color: T.dim, margin: 0 }}>Digest harian & alert akan dikirim otomatis ke email / WhatsApp ini.</p>
+                </div>
+              </div>
+
+              <button
+                onClick={handleAddProject}
+                disabled={savingP || !pForm.name.trim()}
+                style={{ width: '100%', padding: 14, borderRadius: 10, border: 'none', background: T.sky, color: '#03203a', fontWeight: 700, fontSize: 14, cursor: savingP ? 'not-allowed' : 'pointer', opacity: savingP ? 0.6 : 1, marginTop: 4 }}
+              >
+                {savingP ? 'Menyimpan...' : 'Simpan Project'}
+              </button>
+            </div>
+          </Panel>
         </div>
       )}
     </div>
