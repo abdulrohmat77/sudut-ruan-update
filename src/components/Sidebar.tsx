@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { T } from './AcosUI'
 import { 
   LayoutDashboard, 
@@ -13,6 +13,7 @@ import {
   FolderKanban,
   Bot,
   Sparkles,
+  HardHat,
   ChevronsLeft,
   ChevronsRight
 } from 'lucide-react'
@@ -43,7 +44,7 @@ interface MenuSection {
   items: MenuItem[]
 }
 
-const sections: MenuSection[] = [
+const DEFAULT_SECTIONS: MenuSection[] = [
   {
     title: 'PUSAT',
     items: [
@@ -70,6 +71,7 @@ const sections: MenuSection[] = [
     title: 'EKSEKUSI',
     items: [
       { id: 'projects', icon: <FolderKanban size={20} />, label: 'Projects' },
+      { id: 'project-control', icon: <HardHat size={20} />, label: 'Project Control' },
     ],
   },
   {
@@ -87,6 +89,42 @@ const sections: MenuSection[] = [
     ],
   },
 ]
+
+// Load saved order per section from localStorage
+function loadSectionOrder(): Record<string, PageType[]> {
+  try {
+    const raw = localStorage.getItem('sidebar_section_order')
+    if (raw) return JSON.parse(raw)
+  } catch { /* ignore */ }
+  return {}
+}
+
+function saveSectionOrder(data: Record<string, PageType[]>) {
+  localStorage.setItem('sidebar_section_order', JSON.stringify(data))
+}
+
+function loadHidden(): Set<PageType> {
+  try {
+    const raw = localStorage.getItem('sidebar_hidden')
+    if (raw) return new Set(JSON.parse(raw) as PageType[])
+  } catch { /* ignore */ }
+  return new Set()
+}
+
+function saveHidden(hidden: Set<PageType>) {
+  localStorage.setItem('sidebar_hidden', JSON.stringify(Array.from(hidden)))
+}
+
+function getOrderedItems(section: MenuSection, sectionOrders: Record<string, PageType[]>): MenuItem[] {
+  const saved = sectionOrders[section.title]
+  if (!saved) return section.items
+  // Maintain saved order, add new items at end
+  const idSet = new Set(section.items.map((i) => i.id))
+  const lookup = Object.fromEntries(section.items.map((i) => [i.id, i]))
+  const ordered = saved.filter((id) => idSet.has(id)).map((id) => lookup[id]).filter(Boolean) as MenuItem[]
+  const missing = section.items.filter((i) => !saved.includes(i.id))
+  return [...ordered, ...missing]
+}
 
 const BrandMark: React.FC<{ size?: number }> = ({ size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -137,6 +175,48 @@ const Sidebar: React.FC<SidebarProps> = ({
   const handleSelect = (id: PageType) => {
     onPageChange(id)
     onMobileClose()
+  }
+
+  // Customizable menu order + visibility (per section)
+  const [sectionOrders, setSectionOrders] = useState<Record<string, PageType[]>>(() => loadSectionOrder())
+  const [hidden, setHidden] = useState<Set<PageType>>(() => loadHidden())
+  const [editMode, setEditMode] = useState(false)
+  const dragRef = useRef<{ id: PageType; section: string } | null>(null)
+
+  const handleDrop = (targetId: PageType, sectionTitle: string) => {
+    const from = dragRef.current
+    if (!from || from.id === targetId || from.section !== sectionTitle) return
+    setSectionOrders((prev) => {
+      const section = DEFAULT_SECTIONS.find((s) => s.title === sectionTitle)
+      if (!section) return prev
+      const current = getOrderedItems(section, prev).map((i) => i.id)
+      const fromIdx = current.indexOf(from.id)
+      const toIdx = current.indexOf(targetId)
+      if (fromIdx < 0 || toIdx < 0) return prev
+      current.splice(fromIdx, 1)
+      current.splice(toIdx, 0, from.id)
+      const next = { ...prev, [sectionTitle]: current }
+      saveSectionOrder(next)
+      return next
+    })
+    dragRef.current = null
+  }
+
+  const toggleHidden = (id: PageType) => {
+    setHidden((prev: Set<PageType>) => {
+      const next = new Set<PageType>(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      saveHidden(next)
+      return next
+    })
+  }
+
+  const handleReset = () => {
+    setSectionOrders({})
+    setHidden(new Set())
+    saveSectionOrder({})
+    saveHidden(new Set())
   }
 
   return (
@@ -196,50 +276,96 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
-        {/* Nav */}
+        {/* Nav — Sections preserved, items reorderable */}
         <nav className="flex-1 overflow-y-auto no-scrollbar py-sm">
-          {sections.map((section) => (
-            <div key={section.title} className="mb-1">
-              <p className={`px-md pt-md pb-1 text-[10px] font-semibold uppercase tracking-[0.1em] ${collapsed ? 'md:hidden' : ''}`} style={{ color: T.dim }}>
-                {section.title}
-              </p>
-              {section.items.map((item) => {
-                const isActive = currentPage === item.id
-                const badge = item.badgeKey === 'chat' ? chatBadge : 0
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => handleSelect(item.id)}
-                    title={collapsed ? item.label : undefined}
-                    className={`relative w-full flex items-center gap-sm px-md py-2.5 text-[13px] font-medium transition-colors ${collapsed ? 'md:justify-center md:px-0' : ''} ${
-                      isActive ? 'bg-brand-accent/12' : 'hover:bg-black/5'
-                    }`}
-                    style={{ color: isActive ? (T.tint || T.sky) : T.sub }}
-                  >
-                    {isActive && (
-                      <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-brand-accent rounded-r" />
-                    )}
-                    <div
-                      className="flex items-center justify-center relative"
-                      style={{ color: isActive ? T.sky : T.sub }}
-                    >
-                      {item.icon}
-                      {/* Indikator badge saat collapsed */}
-                      {badge > 0 && collapsed && (
-                        <span className="hidden md:block absolute -top-1 -right-1 w-2 h-2 rounded-full bg-brand-accent" />
-                      )}
-                    </div>
-                    <span className={`truncate ${collapsed ? 'md:hidden' : ''}`}>{item.label}</span>
-                    {badge > 0 && (
-                      <span className={`ml-auto bg-brand-accent text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center ${collapsed ? 'md:hidden' : ''}`}>
-                        {badge > 99 ? '99+' : badge}
-                      </span>
-                    )}
-                  </button>
-                )
-              })}
+          {editMode && (
+            <div className="px-3 mb-2">
+              <div className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${collapsed ? 'md:hidden' : ''}`} style={{ color: T.amber }}>MODE EDIT — Drag item dalam section</div>
             </div>
-          ))}
+          )}
+          {DEFAULT_SECTIONS.map((section) => {
+            const items = getOrderedItems(section, sectionOrders)
+            const visibleItems = editMode ? items : items.filter((i) => !hidden.has(i.id))
+            if (!editMode && visibleItems.length === 0) return null
+            return (
+              <div key={section.title} className="mb-1">
+                <p className={`px-md pt-md pb-1 text-[10px] font-semibold uppercase tracking-[0.1em] ${collapsed ? 'md:hidden' : ''}`} style={{ color: T.dim }}>
+                  {section.title}
+                </p>
+                {(editMode ? items : visibleItems).map((item) => {
+                  const isActive = currentPage === item.id
+                  const badge = item.badgeKey === 'chat' ? chatBadge : 0
+                  const isHidden = hidden.has(item.id)
+                  return (
+                    <div
+                      key={item.id}
+                      draggable={editMode}
+                      onDragStart={(e) => { dragRef.current = { id: item.id, section: section.title }; e.dataTransfer.effectAllowed = 'move' }}
+                      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }}
+                      onDrop={(e) => { e.preventDefault(); handleDrop(item.id, section.title) }}
+                      style={{ opacity: isHidden ? 0.4 : 1 }}
+                    >
+                      <button
+                        onClick={() => editMode ? undefined : handleSelect(item.id)}
+                        title={collapsed ? item.label : undefined}
+                        className={`relative w-full flex items-center gap-sm px-md py-2.5 text-[13px] font-medium transition-colors ${collapsed ? 'md:justify-center md:px-0' : ''} ${
+                          !editMode && isActive ? 'bg-brand-accent/12' : 'hover:bg-black/5'
+                        }`}
+                        style={{ color: !editMode && isActive ? (T.tint || T.sky) : T.sub, cursor: editMode ? 'grab' : 'pointer' }}
+                      >
+                        {!editMode && isActive && (
+                          <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-brand-accent rounded-r" />
+                        )}
+                        {editMode && (
+                          <span className={`flex-shrink-0 ${collapsed ? 'md:hidden' : ''}`} style={{ color: T.dim, cursor: 'grab', fontSize: 14 }}>⠿</span>
+                        )}
+                        <div className="flex items-center justify-center relative" style={{ color: !editMode && isActive ? T.sky : T.sub }}>
+                          {item.icon}
+                          {badge > 0 && collapsed && !editMode && (
+                            <span className="hidden md:block absolute -top-1 -right-1 w-2 h-2 rounded-full bg-brand-accent" />
+                          )}
+                        </div>
+                        <span className={`truncate ${collapsed ? 'md:hidden' : ''}`}>{item.label}</span>
+                        {editMode && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleHidden(item.id) }}
+                            className={`ml-auto flex-shrink-0 ${collapsed ? 'md:hidden' : ''}`}
+                            title={isHidden ? 'Tampilkan' : 'Sembunyikan'}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: isHidden ? T.dim : T.green, fontSize: 13 }}
+                          >
+                            {isHidden ? '○' : '●'}
+                          </button>
+                        )}
+                        {!editMode && badge > 0 && (
+                          <span className={`ml-auto bg-brand-accent text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center ${collapsed ? 'md:hidden' : ''}`}>
+                            {badge > 99 ? '99+' : badge}
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })}
+          <div className={`px-md pt-3 ${collapsed ? 'md:hidden' : ''}`}>
+            <button
+              onClick={() => setEditMode(!editMode)}
+              className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-[11px] font-bold uppercase tracking-widest transition-colors"
+              style={{ background: editMode ? `${T.amber}22` : T.inset, border: `1px solid ${editMode ? T.amber : T.line}`, color: editMode ? T.amber : T.dim, cursor: 'pointer' }}
+            >
+              {editMode ? '✓ Selesai' : '⚙ Atur Menu'}
+            </button>
+            {editMode && (
+              <button
+                onClick={handleReset}
+                className="w-full flex items-center justify-center gap-2 py-2 mt-2 rounded-lg text-[11px] font-bold uppercase tracking-widest transition-colors"
+                style={{ background: 'transparent', border: `1px solid ${T.line}`, color: T.dim, cursor: 'pointer' }}
+              >
+                ↺ Reset Default
+              </button>
+            )}
+          </div>
         </nav>
 
         {/* Footer: status + user */}

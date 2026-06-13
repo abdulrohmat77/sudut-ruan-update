@@ -406,8 +406,102 @@ export const ClientService = {
 }
 
 // ============================================================
-// AI Summary Service (hasil rangkuman percakapan oleh AI Analyst)
-// Disimpan permanen di tabel `ai_summaries` (1 baris per percakapan).
+// PMIS Project Control Service (Executive Dashboard)
+// ============================================================
+export interface DBPmisProject {
+  id: string
+  code: string
+  name: string
+  description: string | null
+  client_name: string | null
+  location: string | null
+  contract_value: number
+  currency: string
+  start_date: string | null
+  end_date: string | null
+  actual_start: string | null
+  actual_end: string | null
+  status: string
+  progress_percent: number
+  planned_progress: number
+  created_at: string
+  updated_at: string
+}
+
+export interface DBPmisInvoice {
+  id: string
+  project_id: string
+  invoice_no: string
+  amount: number
+  tax_amount: number
+  issued_date: string | null
+  due_date: string | null
+  paid_date: string | null
+  status: string
+  notes: string | null
+  created_at: string
+}
+
+export const PmisProjectService = {
+  async getAll(): Promise<DBPmisProject[]> {
+    const { data, error } = await supabase
+      .from('pmis_projects')
+      .select('*')
+      .order('updated_at', { ascending: false })
+    if (error) { console.error('pmis_projects getAll error:', error); return [] }
+    return data || []
+  },
+
+  async upsert(project: Partial<DBPmisProject> & { code: string; name: string }) {
+    const { error } = await supabase
+      .from('pmis_projects')
+      .upsert({ ...project, updated_at: new Date().toISOString() }, { onConflict: 'code' })
+    if (error) console.error('pmis_projects upsert error:', error)
+    return { error }
+  },
+
+  async delete(id: string) {
+    const { error } = await supabase.from('pmis_projects').delete().eq('id', id)
+    if (error) console.error('pmis_projects delete error:', error)
+    return { error }
+  },
+}
+
+export const PmisInvoiceService = {
+  async getAll(): Promise<DBPmisInvoice[]> {
+    const { data, error } = await supabase
+      .from('pmis_invoices')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (error) { console.error('pmis_invoices getAll error:', error); return [] }
+    return data || []
+  },
+
+  async getByProject(projectId: string): Promise<DBPmisInvoice[]> {
+    const { data, error } = await supabase
+      .from('pmis_invoices')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false })
+    if (error) return []
+    return data || []
+  },
+
+  async upsert(inv: Partial<DBPmisInvoice> & { project_id: string; invoice_no: string; amount: number }) {
+    const { error } = await supabase.from('pmis_invoices').upsert(inv)
+    if (error) console.error('pmis_invoices upsert error:', error)
+    return { error }
+  },
+
+  async delete(id: string) {
+    const { error } = await supabase.from('pmis_invoices').delete().eq('id', id)
+    if (error) console.error('pmis_invoices delete error:', error)
+    return { error }
+  },
+}
+
+// ============================================================
+// AI Config Service
 // ============================================================
 export interface DBAiSummary {
   id?: string

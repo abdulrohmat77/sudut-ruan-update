@@ -19,6 +19,7 @@ import InvoiceBuilder from './pages/InvoiceBuilder'
 import SpkBuilder from './pages/SpkBuilder'
 import ProposalBuilder from './pages/ProposalBuilder'
 import CustomerCRM from './pages/CustomerCRM'
+import ProjectControl from './pages/ProjectControl'
 import { SpkPrefill, InvoicePrefill } from './services/spkData'
 import { supabase, AIConfigService } from './services/supabaseClient'
 import { authService } from './services/auth'
@@ -34,6 +35,7 @@ export type PageType =
   | 'documents'
   | 'finance'
   | 'projects'
+  | 'project-control'
   | 'ai-studio'
   | 'analytics'
   | 'automation'
@@ -51,6 +53,7 @@ const pageTitles: Record<PageType, string> = {
   documents: 'Dokumen & SPK',
   finance: 'Finance',
   projects: 'Projects',
+  'project-control': 'Project Control',
   'ai-studio': 'AI Studio',
   analytics: 'Analitik & KPI',
   automation: 'Pusat Automasi',
@@ -298,6 +301,8 @@ function App() {
         return <Finance onNavigate={(p) => { if (p === 'invoice-builder') setInvoicePrefill(null); setCurrentPage(p) }} />
       case 'projects':
         return <Projects />
+      case 'project-control':
+        return <ProjectControl />
       case 'ai-studio':
         return <AIStudio />
       case 'invoice-builder':
@@ -338,6 +343,8 @@ function App() {
           title={pageTitles[currentPage]}
           onMobileMenuClick={() => setIsSidebarOpen(true)}
           onSearch={handleTopbarSearch}
+          onGoToChat={() => setCurrentPage('chat-monitoring')}
+          chatBadge={chatBadge}
           notifications={notifications}
           onOpenConversation={openConversation}
           onMarkAllRead={markAllNotificationsRead}
@@ -355,6 +362,51 @@ function App() {
       </main>
 
       <NotificationToasts toasts={toasts} onClick={handleToastClick} onDismiss={dismissToast} />
+
+      {/* Floating Chat Widget — titik merah buat langsung ke Active Chats */}
+      {currentPage !== 'chat-monitoring' && (
+        <button
+          onClick={() => setCurrentPage('chat-monitoring')}
+          aria-label="Buka Active Chats"
+          title={chatBadge > 0 ? `${chatBadge} pesan baru — buka chat` : 'Buka Active Chats'}
+          className="fixed z-50 flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95"
+          style={{
+            bottom: 24,
+            right: 24,
+            width: 52,
+            height: 52,
+            borderRadius: '50%',
+            background: chatBadge > 0 ? '#ef4444' : T.sky,
+            boxShadow: chatBadge > 0
+              ? '0 4px 20px rgba(239,68,68,0.5), 0 0 0 4px rgba(239,68,68,0.15)'
+              : '0 4px 20px rgba(74,179,216,0.4)',
+            border: 'none',
+            cursor: 'pointer',
+            color: '#fff',
+          }}
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          {chatBadge > 0 && (
+            <span
+              className="absolute -top-1 -right-1 flex items-center justify-center animate-pulse"
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: '50%',
+                background: '#fff',
+                color: '#ef4444',
+                fontSize: 10,
+                fontWeight: 800,
+                border: '2px solid #ef4444',
+              }}
+            >
+              {chatBadge > 9 ? '9+' : chatBadge}
+            </span>
+          )}
+        </button>
+      )}
     </div>
   )
 }

@@ -7,10 +7,12 @@ import {
   ProposalData,
   ProposalLineItem,
   ProposalTimelineItem,
+  ProposalQA,
   buildProposalHTML,
   computeTotals,
   defaultTimeline,
   formatMoney,
+  DEFAULT_UNDERSTANDING,
 } from '../services/proposalTemplate'
 import { SpkPrefill } from '../services/spkData'
 
@@ -51,10 +53,17 @@ const ProposalBuilder = ({ onBack, onCreateSpk }: Props) => {
   const [clientPhone, setClientPhone] = useState('')
   const [projectTitle, setProjectTitle] = useState('')
   const [subtitle, setSubtitle] = useState('')
+  const [category, setCategory] = useState('Residensial')
+  const [location, setLocation] = useState('')
+  const [landArea, setLandArea] = useState('')
+  const [tagline, setTagline] = useState('')
   const [currency, setCurrency] = useState<'IDR' | 'USD'>('IDR')
   const [taxPct, setTaxPct] = useState('11')
+  const [conceptTagline, setConceptTagline] = useState('')
+  const [conceptBody, setConceptBody] = useState('')
+  const [understanding, setUnderstanding] = useState<ProposalQA[]>(() => DEFAULT_UNDERSTANDING.map((x) => ({ ...x })))
   const [aboutBody, setAboutBody] = useState(
-    'Sudut Ruang Arsitek adalah studio arsitektur, interior, dan lansekap yang menghadirkan desain fungsional dengan karakter kuat. Kami mendampingi klien dari konsep hingga dokumentasi konstruksi.',
+    'Sudut Ruang Arsitek — di bawah badan hukum CV. Sudut Ruang Archineering — adalah studio Design & Build premium berbasis di Surabaya. Kami menggabungkan desain arsitektur, storytelling visual, pendekatan teknis rancang-bangun, dan strategi branding arsitektur, dengan pengalaman menjangkau proyek strategis nasional termasuk ekosistem IKN.',
   )
   const [closingNote, setClosingNote] = useState(
     'Terima kasih atas kepercayaan Anda. Kami siap berdiskusi lebih lanjut untuk mewujudkan ruang impian Anda.',
@@ -66,8 +75,8 @@ const ProposalBuilder = ({ onBack, onCreateSpk }: Props) => {
 
   const [company, setCompany] = useState({
     name: 'Sudut Ruang Arsitek',
-    locations: 'Surabaya | Bali | IKN',
-    phone: '+62 851 7700 0990',
+    locations: 'Surabaya · Indonesia',
+    phone: '+62 851-77000-990 · +62 821-1111-5619',
     logo: '',
   })
 
@@ -75,8 +84,8 @@ const ProposalBuilder = ({ onBack, onCreateSpk }: Props) => {
     AIConfigService.getAll().then((cfg) => {
       setCompany({
         name: cfg.company_name || 'Sudut Ruang Arsitek',
-        locations: cfg.company_locations || 'Surabaya | Bali | IKN',
-        phone: cfg.company_phone || '+62 851 7700 0990',
+        locations: cfg.company_locations || 'Surabaya · Indonesia',
+        phone: cfg.company_phone || '+62 851-77000-990 · +62 821-1111-5619',
         logo: cfg.company_logo || '',
       })
     })
@@ -97,13 +106,18 @@ const ProposalBuilder = ({ onBack, onCreateSpk }: Props) => {
   const removeTl = (i: number) => setTimeline((prev) => prev.filter((_, idx) => idx !== i))
   const resetTl = () => setTimeline(defaultTimeline())
 
+  const setQa = (i: number, patch: Partial<ProposalQA>) =>
+    setUnderstanding((prev) => prev.map((it, idx) => (idx === i ? { ...it, ...patch } : it)))
+  const addQa = () => setUnderstanding((prev) => [...prev, { q: '', a: '' }])
+  const removeQa = (i: number) => setUnderstanding((prev) => prev.filter((_, idx) => idx !== i))
+
   const data: ProposalData = useMemo(() => {
     const now = new Date()
     const dateLabel = now.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
     return {
       proposalNo,
       dateLabel,
-      confidentialNote: `Confidential & Proprietary • ${dateLabel}`,
+      confidentialNote: `Confidential · ${dateLabel}`,
       projectTitle: projectTitle || 'Nama Proyek',
       projectTitleAccent: '',
       subtitle,
@@ -117,25 +131,30 @@ const ProposalBuilder = ({ onBack, onCreateSpk }: Props) => {
       gallery: [],
       galleryTitle: 'Portofolio & Referensi Desain',
       moodboard: [],
-      moodboardTitle: 'Moodboard & Material',
-      summaryTitle: 'Executive Summary',
-      summaryCards: [
-        { title: 'Ruang Lingkup', body: `Jasa desain untuk ${projectTitle || 'proyek'}.` },
-        { title: 'Pendekatan', body: 'Desain fungsional dengan karakter kuat, efisien, dan sesuai kebutuhan klien.' },
-      ],
+      moodboardTitle: 'BAB 16 · Design Moodboard',
+      summaryTitle: 'Satu halaman. Semua yang perlu Anda tahu.',
+      summaryCards: [],
       paletteTitle: 'Material & Color Direction',
       paletteIntro: '',
       palette: [],
-      timelineTitle: 'Timeline Kerja',
+      timelineTitle: 'Dari brief ke gambar final — terencana.',
       timeline,
-      pricingTitle: 'Rincian Anggaran',
+      pricingTitle: 'Investasi desain yang menghasilkan nilai.',
       lineItems,
       notes:
-        'Angka di atas merupakan estimasi awal dan dapat berubah setelah survey lokasi dan diskusi detail. Proposal berlaku 14 hari sejak diterbitkan.',
+        'Nilai bersifat LUMPSUM FIXED PRICE selama lingkup tidak berubah. Belum termasuk PPN/PPh (jika dikenakan), biaya perjalanan luar kota Surabaya, biaya cetak, dan perizinan PBG. Validity proposal: 30 hari kalender sejak tanggal terbit.',
       closingNote: closingNote.trim() || undefined,
       company,
+      // Master fields
+      category,
+      location,
+      landArea,
+      tagline,
+      conceptTagline,
+      conceptBody,
+      understanding: understanding.filter((q) => q.q.trim() || q.a.trim()),
     }
-  }, [proposalNo, projectTitle, subtitle, clientName, clientPhone, currency, taxPct, aboutBody, closingNote, lineItems, timeline, company])
+  }, [proposalNo, projectTitle, subtitle, clientName, clientPhone, currency, taxPct, aboutBody, closingNote, lineItems, timeline, company, category, location, landArea, tagline, conceptTagline, conceptBody, understanding])
   const docHtml = useMemo(() => buildProposalHTML(data), [data])
   const totals = useMemo(() => computeTotals(data), [data])
 
@@ -211,7 +230,17 @@ const ProposalBuilder = ({ onBack, onCreateSpk }: Props) => {
                 <Field label="Nama Klien"><input style={inputStyle} value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="Bpk. Budi" /></Field>
                 <Field label="No. WhatsApp"><input style={inputStyle} value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} placeholder="6281234567890" /></Field>
                 <Field label="Judul Proyek" full><input style={inputStyle} value={projectTitle} onChange={(e) => setProjectTitle(e.target.value)} placeholder="Villa Tropis Ubud" /></Field>
-                <Field label="Subjudul" full><input style={inputStyle} value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder="Design & Build Proposal" /></Field>
+                <Field label="Tagline / Positioning" full><input style={inputStyle} value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder="Rumah tropis yang bernapas" /></Field>
+                <Field label="Kategori Proyek">
+                  <select style={inputStyle} value={category} onChange={(e) => setCategory(e.target.value)}>
+                    {['Residensial', 'Hospitality', 'Komersial', 'Interior', 'Lanskap', 'Mixed-Use', 'Pemerintah'].map((c) => (
+                      <option key={c} value={c} style={{ background: T.panel }}>{c}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Lokasi"><input style={inputStyle} value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Ubud, Bali" /></Field>
+                <Field label="Luas Lahan (m²)"><input style={inputStyle} value={landArea} onChange={(e) => setLandArea(e.target.value)} placeholder="260" /></Field>
+                <Field label="Subjudul"><input style={inputStyle} value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder="Design & Build Proposal" /></Field>
                 <Field label="Mata Uang">
                   <select style={inputStyle} value={currency} onChange={(e) => setCurrency(e.target.value as 'IDR' | 'USD')}>
                     <option value="IDR" style={{ background: T.panel }}>IDR</option>
@@ -246,14 +275,43 @@ const ProposalBuilder = ({ onBack, onCreateSpk }: Props) => {
               </div>
             </Card>
 
-            <Card tag="§3" title="Narasi">
+            <Card tag="§3" title="Narasi & Konsep">
               <Field label="Tentang Studio" full>
                 <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={3} value={aboutBody} onChange={(e) => setAboutBody(e.target.value)} />
+              </Field>
+              <div style={{ height: 12 }} />
+              <Field label="Tagline Konsep Desain (BAB-06)" full>
+                <input style={inputStyle} value={conceptTagline} onChange={(e) => setConceptTagline(e.target.value)} placeholder="Rumah yang bernapas" />
+              </Field>
+              <div style={{ height: 12 }} />
+              <Field label="Narasi Konsep Desain" full>
+                <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={3} value={conceptBody} onChange={(e) => setConceptBody(e.target.value)} placeholder="Ceritakan pengalaman ruang yang ingin diciptakan (kosongkan untuk teks default)" />
               </Field>
               <div style={{ height: 12 }} />
               <Field label="Catatan Penutup" full>
                 <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={2} value={closingNote} onChange={(e) => setClosingNote(e.target.value)} />
               </Field>
+            </Card>
+
+            <Card tag="§5" title="Understanding the Brief (BAB-03)">
+              <div style={{ fontSize: 11, color: T.dim, marginBottom: 10, lineHeight: 1.5 }}>Pertanyaan & jawaban yang menunjukkan pemahaman ke proyek klien. Sudah terisi default — edit sesuai konteks.</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {understanding.map((qa, i) => (
+                  <div key={i} style={{ background: T.inset, border: `1px solid ${T.line}`, borderRadius: 8, padding: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <span style={{ fontFamily: T.mono, fontSize: 11, fontWeight: 700, color: T.sky }}>{String(i + 1).padStart(2, '0')}</span>
+                      <input style={{ ...inputStyle, padding: '7px 9px', fontSize: 12, flex: 1 }} value={qa.q} onChange={(e) => setQa(i, { q: e.target.value })} placeholder="Pertanyaan klien" />
+                      <button onClick={() => removeQa(i)} title="Hapus" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 7, background: 'transparent', border: `1px solid ${T.line}`, color: '#ef4444', cursor: 'pointer', flexShrink: 0 }}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                    <textarea style={{ ...inputStyle, padding: '7px 9px', fontSize: 12, resize: 'vertical' }} rows={2} value={qa.a} onChange={(e) => setQa(i, { a: e.target.value })} placeholder="Jawaban yang menunjukkan pemahaman" />
+                  </div>
+                ))}
+                <button onClick={addQa} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: 10, borderRadius: 8, border: `1px dashed ${T.sky}55`, background: `${T.sky}0d`, color: T.sky, fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                  <Plus size={15} /> Tambah Pertanyaan
+                </button>
+              </div>
             </Card>
 
             <Card tag="§4" title="Timeline Kerja">

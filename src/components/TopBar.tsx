@@ -11,6 +11,8 @@ interface TopBarProps {
   title: string
   onMobileMenuClick: () => void
   onSearch?: (query: string) => void
+  onGoToChat?: () => void
+  chatBadge?: number
   notifications: AppNotification[]
   onOpenConversation: (conversationId: string) => void
   onMarkAllRead: () => void
@@ -30,6 +32,8 @@ const TopBar: React.FC<TopBarProps> = ({
   title,
   onMobileMenuClick,
   onSearch,
+  onGoToChat,
+  chatBadge = 0,
   notifications,
   onOpenConversation,
   onMarkAllRead,
@@ -90,6 +94,24 @@ const TopBar: React.FC<TopBarProps> = ({
           style={{ color: T.txt }}
         />
       </form>
+
+      {/* Chat Monitoring Shortcut */}
+      {onGoToChat && (
+        <button
+          onClick={onGoToChat}
+          className="w-9 h-9 rounded-lg border flex items-center justify-center relative"
+          style={{ borderColor: chatBadge > 0 ? '#ef444455' : T.line, color: chatBadge > 0 ? '#ef4444' : T.sub, background: chatBadge > 0 ? '#ef444412' : T.inset }}
+          aria-label="Buka Chat Monitoring"
+          title="Chat Monitoring"
+        >
+          <span className="material-symbols-outlined text-[20px]">chat</span>
+          {chatBadge > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+              {chatBadge > 9 ? '9+' : chatBadge}
+            </span>
+          )}
+        </button>
+      )}
 
       {/* Notifications */}
       <div className="relative" ref={panelRef}>
