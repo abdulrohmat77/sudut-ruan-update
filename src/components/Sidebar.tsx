@@ -17,6 +17,7 @@ import {
   ClipboardList,
   Compass,
   CalendarRange,
+  Wand2,
   ChevronsLeft,
   ChevronsRight
 } from 'lucide-react'
@@ -96,6 +97,7 @@ const DEFAULT_SECTIONS: MenuSection[] = [
       { id: 'analytics', icon: <PieChart size={20} />, label: 'Analitik & KPI' },
       { id: 'automation', icon: <Activity size={20} />, label: 'Pusat Automasi' },
       { id: 'ai-studio', icon: <Bot size={20} />, label: 'AI Studio' },
+      { id: 'ai-content', icon: <Wand2 size={20} />, label: 'AI Content Engine' },
     ],
   },
   {
@@ -107,7 +109,7 @@ const DEFAULT_SECTIONS: MenuSection[] = [
 ]
 
 // Load saved order per section from localStorage
-const SIDEBAR_VERSION = '2' // bump this when menu structure changes
+const SIDEBAR_VERSION = '3' // bump this when menu structure changes
 function loadSectionOrder(): Record<string, PageType[]> {
   try {
     const ver = localStorage.getItem('sidebar_version')

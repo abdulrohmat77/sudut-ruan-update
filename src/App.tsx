@@ -23,6 +23,7 @@ import ProjectControl from './pages/ProjectControl'
 import Reporting from './pages/Reporting'
 import DesignMonitoring from './pages/DesignMonitoring'
 import Planning from './pages/Planning'
+import AIContentEngine from './pages/AIContentEngine'
 import { SpkPrefill, InvoicePrefill } from './services/spkData'
 import { supabase, AIConfigService } from './services/supabaseClient'
 import { authService } from './services/auth'
@@ -43,6 +44,7 @@ export type PageType =
   | 'design-monitoring'
   | 'planning'
   | 'ai-studio'
+  | 'ai-content'
   | 'analytics'
   | 'automation'
   | 'settings'
@@ -64,6 +66,7 @@ const pageTitles: Record<PageType, string> = {
   'design-monitoring': 'Design Monitoring',
   planning: 'Planning & Scheduling',
   'ai-studio': 'AI Studio',
+  'ai-content': 'AI Content Engine',
   analytics: 'Analitik & KPI',
   automation: 'Pusat Automasi',
   settings: 'Pengaturan',
@@ -233,7 +236,7 @@ function App() {
     }
 
     poll()
-    pollRef.current = setInterval(poll, 5000)
+    pollRef.current = setInterval(poll, 10000)
     return () => {
       if (pollRef.current) clearInterval(pollRef.current)
     }
@@ -320,6 +323,8 @@ function App() {
         return <Planning />
       case 'ai-studio':
         return <AIStudio />
+      case 'ai-content':
+        return <AIContentEngine />
       case 'invoice-builder':
         return <InvoiceBuilder prefill={invoicePrefill} onBack={() => setCurrentPage('documents')} />
       case 'spk-builder':

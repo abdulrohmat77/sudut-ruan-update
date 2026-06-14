@@ -1,0 +1,109 @@
+{
+  "name": "WF-9 · Auto-Post IG (cron tiap 15 menit)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "minutes", "minutesInterval": 15 }]
+        }
+      },
+      "id": "schedule",
+      "name": "Every 15 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://GANTI_PROJECT.supabase.co/rest/v1/ai_contents?status=eq.scheduled&scheduled_at=lte.{{ encodeURIComponent(new Date().toISOString()) }}&select=*",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "get-due",
+      "name": "Supabase — Get Due Rows",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 0],
+      "credentials": {
+        "httpHeaderAuth": { "id": "supabase-cred", "name": "Supabase Service Role" }
+      },
+      "notes": "Header Auth → Name: apikey, Value: <SERVICE_ROLE_KEY>. TAMBAH juga header 'Authorization: Bearer <SERVICE_ROLE_KEY>' di Options > Headers. Ganti GANTI_PROJECT dengan ref project Supabase."
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data",
+        "options": {}
+      },
+      "id": "split",
+      "name": "Split Rows",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [680, 0],
+      "notes": "Kalau output Get Rows berupa array langsung, set field = '' atau pakai Item Lists. Tujuan: 1 item per konten."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/GANTI_IG_USER_ID/media",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"image_url\": \"{{ $json.image_url }}\",\n  \"caption\": {{ JSON.stringify(($json.caption || '') + '\\n\\n' + ($json.hashtags || '')) }},\n  \"access_token\": \"GANTI_IG_ACCESS_TOKEN\"\n}",
+        "options": {}
+      },
+      "id": "ig-create",
+      "name": "IG — Create Media",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 0],
+      "notes": "Step 1 posting IG. Output: { id: creation_id }. Ganti IG_USER_ID + ACCESS_TOKEN (Instagram Graph API Business)."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/GANTI_IG_USER_ID/media_publish",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"creation_id\": \"{{ $json.id }}\",\n  \"access_token\": \"GANTI_IG_ACCESS_TOKEN\"\n}",
+        "options": {}
+      },
+      "id": "ig-publish",
+      "name": "IG — Publish",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 0],
+      "notes": "Step 2 posting IG. Publish creation_id dari step 1."
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://GANTI_PROJECT.supabase.co/rest/v1/ai_contents?id=eq.{{ $('Split Rows').item.json.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"status\": \"posted\",\n  \"posted_at\": \"{{ new Date().toISOString() }}\",\n  \"post_result\": \"OK\"\n}",
+        "options": {}
+      },
+      "id": "mark-posted",
+      "name": "Supabase — Mark Posted",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 0],
+      "credentials": {
+        "httpHeaderAuth": { "id": "supabase-cred", "name": "Supabase Service Role" }
+      },
+      "notes": "Tambah header 'Authorization: Bearer <SERVICE_ROLE_KEY>' + 'Prefer: return=minimal' di Options > Headers."
+    }
+  ],
+  "connections": {
+    "Every 15 min": { "main": [[{ "node": "Supabase — Get Due Rows", "type": "main", "index": 0 }]] },
+    "Supabase — Get Due Rows": { "main": [[{ "node": "Split Rows", "type": "main", "index": 0 }]] },
+    "Split Rows": { "main": [[{ "node": "IG — Create Media", "type": "main", "index": 0 }]] },
+    "IG — Create Media": { "main": [[{ "node": "IG — Publish", "type": "main", "index": 0 }]] },
+    "IG — Publish": { "main": [[{ "node": "Supabase — Mark Posted", "type": "main", "index": 0 }]] }
+  },
+  "settings": {},
+  "pinData": {}
+}

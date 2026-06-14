@@ -39,6 +39,7 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange, theme: propTheme, den
 
   const [webhookUrl, setWebhookUrl] = useState('')
   const [webhookPdfUrl, setWebhookPdfUrl] = useState('')
+  const [webhookContentUrl, setWebhookContentUrl] = useState('')
 
   const [locked, setLocked] = useState(true)
 
@@ -80,6 +81,7 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange, theme: propTheme, den
     if (cfg.company_logo) setLogo(cfg.company_logo)
     if (cfg.webhook_url) setWebhookUrl(cfg.webhook_url)
     if (cfg.webhook_pdf_url) setWebhookPdfUrl(cfg.webhook_pdf_url)
+    if (cfg.webhook_content_url) setWebhookContentUrl(cfg.webhook_content_url)
     checkConnections()
   }
 
@@ -99,8 +101,14 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange, theme: propTheme, den
     setSaving(true)
     await Promise.all([
       AIConfigService.set('webhook_url', webhookUrl),
-      AIConfigService.set('webhook_pdf_url', webhookPdfUrl)
+      AIConfigService.set('webhook_pdf_url', webhookPdfUrl),
+      AIConfigService.set('webhook_content_url', webhookContentUrl)
     ])
+    // Simpan override content webhook ke localStorage agar langsung dipakai n8nService
+    try {
+      if (webhookContentUrl) localStorage.setItem('n8n_content_url', webhookContentUrl.replace(/\/+$/, ''))
+      else localStorage.removeItem('n8n_content_url')
+    } catch { /* ignore */ }
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -381,16 +389,25 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange, theme: propTheme, den
                   disabled={locked}
                   style={{ ...inputStyle, fontFamily: T.mono, fontSize: 11, color: T.txt, marginBottom: 8 }}
                 />
+                <div style={{ fontSize: 10, fontWeight: 800, color: T.dim, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Webhook AI Content Engine</div>
+                <input
+                  type="text"
+                  value={webhookContentUrl}
+                  onChange={e => setWebhookContentUrl(e.target.value)}
+                  placeholder="https://your-n8n.com/webhook/generate-content"
+                  disabled={locked}
+                  style={{ ...inputStyle, fontFamily: T.mono, fontSize: 11, color: T.txt, marginBottom: 16 }}
+                />
                 <Btn v="primary" size="sm" onClick={saveIntegrasi} disabled={locked || saving} icon={saved ? "CheckCircle" : "Save"}>
                   {saving ? 'Menyimpan...' : saved ? 'Tersimpan!' : 'Simpan URL'}
                 </Btn>
               </div>
 
               <div style={{ marginBottom: 24 }}>
-                <div style={{ fontSize: 10, fontWeight: 800, color: T.dim, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>AI Model (Groq)</div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: T.dim, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>AI Model</div>
                 <input
                   type="text"
-                  defaultValue="llama-3.3-70b-versatile"
+                  defaultValue="Google Gemini (gemini-2.5-flash)"
                   style={{ ...inputStyle, fontFamily: T.mono, fontSize: 11, color: T.dim }}
                   readOnly
                 />

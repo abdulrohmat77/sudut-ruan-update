@@ -32,14 +32,22 @@ const PinLock: React.FC<Props> = ({
 
   useEffect(() => {
     let alive = true
-    AIConfigService.get('settings_pin').then((v) => {
-      if (alive) {
-        setPin(v || '')
-        setLoaded(true)
-      }
-    })
+    // Fallback: kalau Supabase lambat/gagal, paksa `loaded` true setelah 3 dtk
+    // biar tombol "Buka Kunci" tidak disabled selamanya.
+    const timer = setTimeout(() => { if (alive) setLoaded(true) }, 3000)
+    AIConfigService.get('settings_pin')
+      .then((v) => {
+        if (alive) {
+          setPin(v || '')
+          setLoaded(true)
+        }
+      })
+      .catch(() => {
+        if (alive) setLoaded(true)
+      })
     return () => {
       alive = false
+      clearTimeout(timer)
     }
   }, [])
 

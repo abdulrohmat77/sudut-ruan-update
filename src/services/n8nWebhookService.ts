@@ -33,6 +33,14 @@ export interface ConversationAnalysis {
   ringkasan?: string
 }
 
+/** Hasil generate konten IG oleh AI (caption + gambar). */
+export interface GeneratedContent {
+  caption?: string
+  hashtags?: string
+  image_prompt?: string
+  image_url?: string
+}
+
 const DEFAULT_BASE_URL = 'https://n8n.srv1696073.hstgr.cloud/webhook'
 
 const ENDPOINTS = {
@@ -45,6 +53,7 @@ const ENDPOINTS = {
   syncConversation: '/incoming-conversation',
   analyzeConversation: '/analyze-conversation',
   saveToSheet: '/save-to-sheet',
+  generateContent: '/generate-content',
   ping: '/ping',
 } as const
 
@@ -192,8 +201,8 @@ class N8NWebhookService {
   }
 
   /**
-   * AI Analyst — minta n8n (Groq) merangkum percakapan jadi data terstruktur.
-   * n8n: Webhook /analyze-conversation → Groq llama-3.3-70b (response_format json) → respond JSON.
+   * AI Analyst — minta n8n (Gemini) merangkum percakapan jadi data terstruktur.
+   * n8n: Webhook /analyze-conversation → Gemini (responseMimeType json) → respond JSON.
    */
   async analyzeConversation(payload: {
     conversationId: string
@@ -215,6 +224,46 @@ class N8NWebhookService {
       return { success: true, data }
     } catch (error) {
       console.error('[n8n] analyzeConversation failed:', error)
+      return { success: false, error: error instanceof Error ? error.message : 'unknown' }
+    }
+  }
+
+  /**
+   * AI Content Engine — minta n8n generate caption + gambar untuk IG.
+   * n8n: Webhook /generate-content → Gemini (caption + image prompt) → Image gen → upload Storage → respond {data}.
+   */
+  async generateContent(payload: {
+    topic: string
+    tone?: string
+    platform?: string
+  }): Promise<{ success: boolean; data?: GeneratedContent; error?: string }> {
+    try {
+      // Pakai override URL khusus content (dari Settings) bila ada, else {base}/generate-content
+      let url = this.url(ENDPOINTS.generateContent)
+      try {
+        const override = localStorage.getItem('n8n_content_url')
+        if (override) url = override
+      } catch { /* ignore */ }
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!response.ok) throw new Error(`Generate content gagal: HTTP ${response.status}`)
+      const raw = await response.text()
+      if (!raw || !raw.trim()) {
+        throw new Error('n8n membalas kosong. Pastikan node "Respond to Webhook" terhubung & responseMode = "Using Respond to Webhook node".')
+      }
+      let json: any
+      try {
+        json = JSON.parse(raw)
+      } catch {
+        throw new Error('Respon n8n bukan JSON valid. Cek output node terakhir di n8n.')
+      }
+      const data = (json?.data ?? json) as GeneratedContent
+      return { success: true, data }
+    } catch (error) {
+      console.error('[n8n] generateContent failed:', error)
       return { success: false, error: error instanceof Error ? error.message : 'unknown' }
     }
   }

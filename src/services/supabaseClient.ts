@@ -713,6 +713,47 @@ export const PmisDeliverableService = {
 }
 
 // ============================================================
+// AI Content Engine Service (konten IG generate AI)
+// ============================================================
+export interface DBAiContent {
+  id: string
+  topic: string | null
+  caption: string | null
+  hashtags: string | null
+  image_prompt: string | null
+  image_url: string | null
+  platform: string
+  status: 'draft' | 'scheduled' | 'posted' | 'failed'
+  scheduled_at: string | null
+  posted_at: string | null
+  post_result: string | null
+  created_at: string
+  updated_at: string
+}
+
+export const AiContentService = {
+  async getAll(): Promise<DBAiContent[]> {
+    const { data, error } = await supabase.from('ai_contents').select('*').order('created_at', { ascending: false })
+    if (error) { console.error('ai_contents getAll error:', error); return [] }
+    return data || []
+  },
+  async insert(row: Partial<DBAiContent>) {
+    const { data, error } = await supabase.from('ai_contents').insert({ ...row, updated_at: new Date().toISOString() }).select().single()
+    if (error) console.error('ai_contents insert error:', error)
+    return { data, error }
+  },
+  async update(id: string, patch: Partial<DBAiContent>) {
+    const { error } = await supabase.from('ai_contents').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', id)
+    if (error) console.error('ai_contents update error:', error)
+    return { error }
+  },
+  async delete(id: string) {
+    const { error } = await supabase.from('ai_contents').delete().eq('id', id)
+    return { error }
+  },
+}
+
+// ============================================================
 // AI Config Service
 // ============================================================
 export interface DBAiSummary {

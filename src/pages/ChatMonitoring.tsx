@@ -67,7 +67,7 @@ const ChatMonitoring: React.FC<ChatMonitoringProps> = ({
   useEffect(() => {
     loadConversations()
     loadQuickReplies()
-    convPollRef.current = setInterval(loadConversations, 3000)
+    convPollRef.current = setInterval(loadConversations, 8000)
     return () => { if (convPollRef.current) clearInterval(convPollRef.current) }
   }, [])
 
@@ -88,7 +88,7 @@ const ChatMonitoring: React.FC<ChatMonitoringProps> = ({
       loadMessages(selectedId)
       ConversationService.markRead(selectedId)
       if (msgPollRef.current) clearInterval(msgPollRef.current)
-      msgPollRef.current = setInterval(() => loadMessages(selectedId), 3000)
+      msgPollRef.current = setInterval(() => loadMessages(selectedId), 5000)
     }
     return () => { if (msgPollRef.current) clearInterval(msgPollRef.current) }
   }, [selectedId])
