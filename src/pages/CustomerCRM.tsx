@@ -244,7 +244,7 @@ const CustomerCRM: React.FC<CustomerCRMProps> = ({ onNavigate }) => {
                     <div style={{ display: 'flex', gap: 8 }}>
                       <Btn v="primary" size="sm" icon="MessageSquare" onClick={() => onNavigate('chat-monitoring')} style={{ flex: 1, justifyContent: 'center' }}>Chat</Btn>
                       <Btn v="ghost" size="sm" icon="FileText" onClick={() => onNavigate('proposal-builder')} style={{ flex: 1, justifyContent: 'center' }}>Proposal</Btn>
-                      <Btn v="ghost" size="sm" icon="Kanban" onClick={() => onNavigate('projects')} style={{ flex: 1, justifyContent: 'center' }}>Proyek</Btn>
+                      <Btn v="ghost" size="sm" icon="Kanban" onClick={() => onNavigate('pipeline')} style={{ flex: 1, justifyContent: 'center' }}>Proyek</Btn>
                     </div>
                   </>
                 )

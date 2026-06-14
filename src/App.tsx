@@ -8,8 +8,6 @@ import ChatMonitoring from './pages/ChatMonitoring'
 import Pipeline from './pages/Pipeline'
 import Documents from './pages/Documents'
 import Estimator from './pages/Estimator'
-import Projects from './pages/Projects'
-import Finance from './pages/Finance'
 import AIStudio from './pages/AIStudio'
 import Analytics from './pages/Analytics'
 import AutomationLog from './pages/AutomationLog'
@@ -19,12 +17,9 @@ import InvoiceBuilder from './pages/InvoiceBuilder'
 import SpkBuilder from './pages/SpkBuilder'
 import ProposalBuilder from './pages/ProposalBuilder'
 import CustomerCRM from './pages/CustomerCRM'
-import ProjectControl from './pages/ProjectControl'
-import Reporting from './pages/Reporting'
-import DesignMonitoring from './pages/DesignMonitoring'
-import Planning from './pages/Planning'
 import AIContentEngine from './pages/AIContentEngine'
 import LoadingScreen from './components/LoadingScreen'
+import CommandCenterLauncher from './components/CommandCenterLauncher'
 import { SpkPrefill, InvoicePrefill } from './services/spkData'
 import { supabase, AIConfigService } from './services/supabaseClient'
 import { authService } from './services/auth'
@@ -38,12 +33,6 @@ export type PageType =
   | 'customer-crm'
   | 'estimator'
   | 'documents'
-  | 'finance'
-  | 'projects'
-  | 'project-control'
-  | 'reporting'
-  | 'design-monitoring'
-  | 'planning'
   | 'ai-studio'
   | 'ai-content'
   | 'analytics'
@@ -60,12 +49,6 @@ const pageTitles: Record<PageType, string> = {
   'customer-crm': 'Customer CRM',
   estimator: 'AI Estimator',
   documents: 'Dokumen & SPK',
-  finance: 'Finance',
-  projects: 'Projects',
-  'project-control': 'Project Control',
-  reporting: 'Reporting',
-  'design-monitoring': 'Design Monitoring',
-  planning: 'Planning & Scheduling',
   'ai-studio': 'AI Studio',
   'ai-content': 'AI Content Engine',
   analytics: 'Analitik & KPI',
@@ -131,7 +114,7 @@ function App() {
       return next
     })
   const [chatBadge, setChatBadge] = useState(0)
-  const [logo, setLogo] = useState<string>('')
+  const [logo, setLogo] = useState<string>(() => localStorage.getItem('logo_cache') || '')
   const [booting, setBooting] = useState(true)
 
   // Loading screen awal (logo SRA berkedip) selama ~2 dtk.
@@ -170,7 +153,9 @@ function App() {
   // Unlock audio + load logo on first authed render
   useEffect(() => {
     if (!authed) return
-    AIConfigService.get('company_logo').then((v) => v && setLogo(v))
+    AIConfigService.get('company_logo').then((v) => {
+      if (v) { setLogo(v); localStorage.setItem('logo_cache', v) }
+    })
     const unlock = () => primeAudio()
     window.addEventListener('pointerdown', unlock, { once: true })
     window.addEventListener('keydown', unlock, { once: true })
@@ -324,18 +309,6 @@ function App() {
           onContinueToSpk={(p) => { setSpkPrefill(p); setCurrentPage('spk-builder') }}
           onContinueToInvoice={(p) => { setInvoicePrefill(p); setCurrentPage('invoice-builder') }}
         />
-      case 'finance':
-        return <Finance onNavigate={(p) => { if (p === 'invoice-builder') setInvoicePrefill(null); setCurrentPage(p) }} />
-      case 'projects':
-        return <Projects />
-      case 'project-control':
-        return <ProjectControl />
-      case 'reporting':
-        return <Reporting />
-      case 'design-monitoring':
-        return <DesignMonitoring />
-      case 'planning':
-        return <Planning />
       case 'ai-studio':
         return <AIStudio />
       case 'ai-content':
@@ -397,6 +370,9 @@ function App() {
       </main>
 
       <NotificationToasts toasts={toasts} onClick={handleToastClick} onDismiss={dismissToast} />
+
+      {/* Slider kanan: buka dashboard ke-2 (Project Command Center) */}
+      <CommandCenterLauncher />
 
       {/* Floating Chat Widget — titik merah buat langsung ke Active Chats */}
       {currentPage !== 'chat-monitoring' && (

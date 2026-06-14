@@ -2,6 +2,17 @@
   command = "npm run build"
   publish = "dist"
 
+# ── Project Command Center (file statis di public/commandcenter) ──
+# Deep-link refresh (mis. /commandcenter/dashboard) → balikin shell SPA-nya.
+# Aset asli (file yang benar-benar ada) tetap dilayani langsung oleh Netlify;
+# rule ini hanya kena untuk path yang bukan file (SPA fallback).
+# HARUS di atas catch-all kiro di bawah.
+[[redirects]]
+  from = "/commandcenter/*"
+  to = "/commandcenter/index.html"
+  status = 200
+
+# ── SPA fallback kiro (catch-all, paling bawah) ──
 [[redirects]]
   from = "/*"
   to = "/index.html"

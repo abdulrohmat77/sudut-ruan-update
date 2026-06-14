@@ -4,7 +4,7 @@ import { ClientService, ConversationService, PromptService } from '../services/s
 
 // Workflow definitions for Sudut Ruang (real workflows, no runtime data)
 const WORKFLOWS = [
-  { id: 'WF_AI_AGENT',    name: 'AI Agent (Syifa)',    desc: 'Balas WA/IG otomatis via Groq LLM', trigger: 'Webhook', nodes: ['Webhook', 'AI Scorer', 'Groq LLM', 'WA Reply', 'Supabase Insert'] },
+  { id: 'WF_AI_AGENT',    name: 'AI Agent (Syifa)',    desc: 'Balas WA/IG otomatis via Gemini LLM', trigger: 'Webhook', nodes: ['Webhook', 'AI Scorer', 'Gemini LLM', 'WA Reply', 'Supabase Insert'] },
   { id: 'WF_LEAD_CAPTURE', name: 'Lead Capture',       desc: 'Sinkronisasi lead masuk ke CRM',    trigger: 'Webhook', nodes: ['WA Webhook', 'Parse Lead', 'Upsert CRM', 'Notify Team'] },
   { id: 'WF_PROPOSAL_GEN', name: 'Proposal Generator', desc: 'Generate PDF proposal berbranding',  trigger: 'Manual',  nodes: ['Trigger', 'Get Client', 'Compose PDF', 'Send WA', 'Supabase Insert'] },
   { id: 'WF_PING',        name: 'Health Check',        desc: 'Ping n8n setiap 5 menit',           trigger: 'Cron',    nodes: ['Schedule', 'Ping Assert', 'Alert Notify'] },
@@ -14,7 +14,7 @@ const nodeIcon = (n: string) => {
   const s = n.toLowerCase()
   if (s.includes('webhook') || s.includes('trigger')) return 'Webhook'
   if (s.includes('cron') || s.includes('schedule')) return 'Clock'
-  if (s.includes('groq') || s.includes('llm') || s.includes('ai') || s.includes('compose')) return 'Sparkles'
+  if (s.includes('gemini') || s.includes('llm') || s.includes('ai') || s.includes('compose')) return 'Sparkles'
   if (s.includes('supabase') || s.includes('upsert') || s.includes('insert') || s.includes('get')) return 'Database'
   if (s.includes('whatsapp') || s.includes('wa') || s.includes('reply') || s.includes('send')) return 'MessageSquare'
   if (s.includes('parse') || s.includes('scorer') || s.includes('route') || s.includes('switch')) return 'GitBranch'
@@ -27,7 +27,6 @@ interface LiveLog {
   wf: string
   status: 'ok' | 'warn' | 'err'
   label: string
-  ms: number
   t: string
 }
 
@@ -90,36 +89,34 @@ const AutomationLog: React.FC = () => {
       })
 
       // Build live log from real conversation data
-      const logs: LiveLog[] = aiConvs.slice(0, 12).map((c, i) => ({
+      const fmtT = (s?: string) => (s ? new Date(s).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—')
+      const logs: LiveLog[] = aiConvs.slice(0, 12).map((c) => ({
         id:     `exec_${c.id.slice(-5)}`,
         wf:     'WF_AI_AGENT',
         status: 'ok' as const,
         label:  `Syifa membalas ${c.client_name || 'pelanggan'}`,
-        ms:     Math.round(900 + Math.random() * 800),
-        t:      i === 0 ? 'baru saja' : `${i * 3 + 1}m lalu`,
+        t:      fmtT(c.last_message_at),
       }))
 
       // Add lead capture events
-      clients.slice(0, 4).forEach((c, i) => {
+      clients.slice(0, 4).forEach((c) => {
         logs.push({
           id:     `lc_${c.id.slice(-5)}`,
           wf:     'WF_LEAD_CAPTURE',
           status: 'ok',
           label:  `Lead ${c.name || c.id} disimpan ke CRM`,
-          ms:     Math.round(200 + Math.random() * 300),
-          t:      `${i * 8 + 2}m lalu`,
+          t:      fmtT(c.last_contact_at || c.created_at),
         })
       })
 
       // Add proposal gen events
-      proposals.slice(0, 2).forEach((c, i) => {
+      proposals.slice(0, 2).forEach((c) => {
         logs.push({
           id:     `pg_${c.id.slice(-5)}`,
           wf:     'WF_PROPOSAL_GEN',
           status: 'ok',
           label:  `Proposal di-generate untuk ${c.name || c.id}`,
-          ms:     Math.round(3000 + Math.random() * 2000),
-          t:      `${i * 15 + 5}m lalu`,
+          t:      fmtT(c.created_at),
         })
       })
 
@@ -135,8 +132,6 @@ const AutomationLog: React.FC = () => {
     { l: 'Eksekusi AI', v: loading ? '...' : stats.aiConvs.toString(), icon: 'Bot', c: T.sky },
     { l: 'Lead Ditangkap', v: loading ? '...' : stats.leads.toString(), icon: 'Inbox', c: T.tint },
     { l: 'Proposal Gen', v: loading ? '...' : stats.proposals.toString(), icon: 'FileText', c: T.green },
-    { l: 'Success Rate', v: '99.2%', icon: 'CircleCheck', c: T.green },
-    { l: 'Avg Latency', v: '0.7s', icon: 'Zap', c: T.sky },
   ]
 
   return (
@@ -310,8 +305,7 @@ const AutomationLog: React.FC = () => {
                     <Dot color={kindC[e.status]} size={7} />
                     <span style={{ fontFamily: T.mono, fontSize: 11, color: T.sub, flex: 1 }}>{e.id}</span>
                     <Tag color={kindC[e.status]} style={{ fontSize: 9 }}>{e.status === 'ok' ? 'success' : e.status}</Tag>
-                    <span style={{ fontFamily: T.mono, fontSize: 10.5, color: T.dim, width: 60, textAlign: 'right' }}>{e.ms}ms</span>
-                    <span style={{ fontSize: 10, color: T.dim, width: 60, textAlign: 'right' }}>{e.t}</span>
+                    <span style={{ fontSize: 10, color: T.dim, width: 110, textAlign: 'right' }}>{e.t}</span>
                   </div>
                 ))}
               </div>
@@ -330,7 +324,7 @@ const AutomationLog: React.FC = () => {
                 <div style={{ padding: 12, color: T.dim }}>Belum ada aktivitas.</div>
               ) : liveLogs.map((e, i) => (
                 <div key={i} style={{ display: 'flex', gap: 8, padding: '5px 0', color: T.sub, borderBottom: `1px solid ${T.line}33` }}>
-                  <span style={{ color: T.dim, width: 60, flexShrink: 0 }}>{e.t}</span>
+                  <span style={{ color: T.dim, width: 100, flexShrink: 0 }}>{e.t}</span>
                   <span style={{ color: kindC[e.status], width: 36, flexShrink: 0 }}>[{e.status === 'ok' ? 'OK ' : e.status === 'warn' ? 'WARN' : 'ERR'}]</span>
                   <span style={{ color: T.sky, width: 100, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.wf}</span>
                   <span style={{ flex: 1, color: T.sub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.label}</span>

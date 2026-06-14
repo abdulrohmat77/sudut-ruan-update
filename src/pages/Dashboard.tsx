@@ -81,16 +81,13 @@ function AutomationCard({ setPage }: { setPage: (p: any) => void }) {
       <PanelHead title="Automation Health" sub="Supabase Webhooks · Internal" icon="Workflow" accent={T.green}
         right={<Tag color={T.green}><Dot color={T.green} pulse size={6} />LIVE</Tag>} />
       <div style={{ display: "flex", gap: 14, padding: "16px 18px", alignItems: "center", borderBottom: `1px solid ${T.line}` }}>
-        <Ring value={Math.round(health)} size={68} color={T.green} label="uptime" />
+        <Ring value={Math.round(health)} size={68} color={T.green} label="status" />
         <div style={{ flex: 1 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
             <span style={{ fontSize: 11, color: T.dim }}>Webhook aktif</span><span style={{ fontSize: 11, fontWeight: 700, color: T.txt }}>1 / 1</span>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-            <span style={{ fontSize: 11, color: T.dim }}>Run / 24 jam</span><span style={{ fontSize: 11, fontWeight: 700, color: T.txt }}>Realtime</span>
-          </div>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 11, color: T.dim }}>Avg latency</span><span style={{ fontSize: 11, fontWeight: 700, color: T.sky }}>0.2 s</span>
+            <span style={{ fontSize: 11, color: T.dim }}>Mode</span><span style={{ fontSize: 11, fontWeight: 700, color: T.sky }}>Realtime</span>
           </div>
         </div>
       </div>
@@ -189,13 +186,15 @@ function ProjectsMini({ setPage, clients }: { setPage: (p: any) => void, clients
           <div style={{ padding: 20, textAlign: "center", color: T.dim, fontSize: 11 }}>Belum ada deal/proyek aktif</div>
         ) : deals.map((p) => (
           <div key={p.id} onClick={() => setPage("pipeline")} className="ac-row hover:bg-white/5 transition-colors" style={{ display: "flex", alignItems: "center", gap: 13, padding: "11px 18px", cursor: "pointer" }}>
-            <Ring value={100} size={42} stroke={5} color={T.green} />
+            <div style={{ width: 38, height: 38, borderRadius: 10, background: `${T.green}1c`, display: "grid", placeItems: "center", flexShrink: 0 }}>
+              <Icon name="Kanban" size={17} color={T.green} />
+            </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: T.txt, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name} - {p.building_type}</div>
-              <div style={{ fontSize: 10.5, color: T.dim, marginTop: 2 }}>ID: {p.id}</div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: T.txt, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}{p.building_type ? ` · ${p.building_type}` : ''}</div>
+              <div style={{ fontSize: 10.5, color: T.dim, marginTop: 2 }}>{p.phone || p.id}</div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <Tag color={T.sky}>Konstruksi</Tag>
+              <Tag color={T.green}>Deal</Tag>
               <div style={{ fontSize: 11, fontWeight: 700, color: T.sub, marginTop: 5, fontFamily: T.mono }}>{fmtRp(p.rab_avg || 0)}</div>
             </div>
           </div>
@@ -245,7 +244,7 @@ function CustomerInsights({ setPage }: { setPage: (p: any) => void }) {
   const initials = (n?: string) => (n || '?').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()
 
   return (
-    <Panel style={{ gridColumn: '1 / -1', marginTop: 16 }}>
+    <Panel style={{ gridColumn: '1 / -1', marginBottom: 16 }}>
       <PanelHead title="Data Customer & Progress (AI Summary)" sub="Rangkuman percakapan oleh AI — sinkron dengan Spreadsheet" icon="Sparkles" accent={T.sky}
         right={<Btn v="ghost" size="sm" icon="RefreshCw" onClick={load}>Refresh</Btn>} />
 
@@ -367,7 +366,7 @@ function CustomerInsights({ setPage }: { setPage: (p: any) => void }) {
                   <div style={{ display: 'flex', gap: 8 }}>
                     <Btn v="primary" size="sm" icon="MessageSquare" onClick={() => setPage('chat-monitoring')} style={{ flex: 1, justifyContent: 'center' }}>Chat</Btn>
                     <Btn v="ghost" size="sm" icon="FileText" onClick={() => setPage('proposal-builder')} style={{ flex: 1, justifyContent: 'center' }}>Proposal</Btn>
-                    <Btn v="ghost" size="sm" icon="Kanban" onClick={() => setPage('projects')} style={{ flex: 1, justifyContent: 'center' }}>Proyek</Btn>
+                    <Btn v="ghost" size="sm" icon="Kanban" onClick={() => setPage('pipeline')} style={{ flex: 1, justifyContent: 'center' }}>Proyek</Btn>
                   </div>
                 </>
               )
@@ -442,6 +441,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         {kpis.map((k, i) => <Stat key={i} {...k} />)}
       </div>
 
+      {/* AI Summary — dipindah ke atas */}
+      <CustomerInsights setPage={handleNav} />
+
       <FlowStrip setPage={handleNav} clients={clients} />
 
       {/* main grid */}
@@ -474,8 +476,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           <ActivityFeed />
         </div>
       </div>
-
-      <CustomerInsights setPage={handleNav} />
     </div>
   )
 }

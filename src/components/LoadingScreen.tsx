@@ -25,30 +25,18 @@ const LoadingScreen: React.FC<{ logo?: string }> = ({ logo }) => {
         textAlign: 'center',
       }}
     >
-      <div
+      <img
+        src={logo || '/logo-main.png'}
+        alt="Sudut Ruang Arsitek"
         className="sra-blink"
         style={{
-          background: '#ffffff',
-          borderRadius: 22,
-          padding: '22px 30px',
-          boxShadow: '0 10px 40px rgba(0,0,0,0.4)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          maxWidth: '80vw',
+          width: 'min(42vw, 160px)',
+          height: 'auto',
+          objectFit: 'contain',
+          display: 'block',
+          maxWidth: '70vw',
         }}
-      >
-        <img
-          src={logo || '/logo-main.png'}
-          alt="Sudut Ruang Arsitek"
-          style={{
-            width: 'min(60vw, 220px)',
-            height: 'auto',
-            objectFit: 'contain',
-            display: 'block',
-          }}
-        />
-      </div>
+      />
 
       <div
         className="sra-blink"

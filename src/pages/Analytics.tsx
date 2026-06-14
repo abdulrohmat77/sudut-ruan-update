@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { T, Panel, PanelHead, Bars, Dot, ProgBar, Icon } from '../components/AcosUI'
+import { T, Panel, PanelHead, Bars, Dot, ProgBar } from '../components/AcosUI'
 import { ClientService, DBClient } from '../services/supabaseClient'
 
 function Analytics() {
@@ -107,7 +107,7 @@ function Analytics() {
         </Panel>
       </div>
 
-      {/* Funnel + Dampak Automasi — stack on mobile */}
+      {/* Funnel */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
         <Panel>
           <PanelHead title="Funnel Konversi" sub="Lead → Closing" icon="Filter" />
@@ -126,25 +126,6 @@ function Analytics() {
                 </div>
               );
             })}
-          </div>
-        </Panel>
-        <Panel>
-          <PanelHead title="Dampak Automasi" sub="Sebelum vs sesudah ACOS" icon="Sparkles" accent={T.green} />
-          <div style={{ padding: "8px 18px" }}>
-            {[
-              ["Waktu respons lead", "4 jam", "1.2 mnt", T.green],
-              ["Buat proposal", "2 hari", "5 menit", T.green],
-              ["Input data ulang", "5×/deal", "0×", T.green],
-              ["Lead tertangani AI", "0%", "86%", T.tint],
-              ["Dokumen / bulan", "~30", "142", T.sky]
-            ].map(([l, before, after, c], i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 0", borderBottom: i < 4 ? `1px solid ${T.line}` : "none", flexWrap: "wrap" }}>
-                <span style={{ flex: 1, minWidth: 100, fontSize: 12, color: T.sub, fontWeight: 600 }}>{l}</span>
-                <span style={{ fontSize: 11, color: T.dim, textDecoration: "line-through", whiteSpace: "nowrap" }}>{before}</span>
-                <Icon name="ArrowRight" size={13} color={T.dim} />
-                <span style={{ fontSize: 13, fontWeight: 800, color: c as string, minWidth: 50, textAlign: "right", whiteSpace: "nowrap" }}>{after}</span>
-              </div>
-            ))}
           </div>
         </Panel>
       </div>

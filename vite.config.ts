@@ -17,10 +17,12 @@ export default defineConfig({
       // Bundle utama bisa >2 MB sehingga build Netlify gagal tanpa ini.
       workbox: {
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024, // 6 MiB
+        // Jangan precache file Command Center (app statis terpisah di /commandcenter).
+        globIgnores: ['**/commandcenter/**'],
         // Jangan kembalikan app shell (index.html) untuk request file template
         // & PDF di /template_dokument/ atau /uploads/ — biar iframe load HTML asli,
         // bukan dashboard. Tanpa ini, Invoice Builder malah nampilin dashboard nested.
-        navigateFallbackDenylist: [/^\/template_dokument\//, /^\/uploads\//, /\.html$/]
+        navigateFallbackDenylist: [/^\/template_dokument\//, /^\/uploads\//, /^\/commandcenter/, /\.html$/]
       },
       manifest: {
         name: 'Kiro by Sudut Ruang',

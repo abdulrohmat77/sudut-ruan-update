@@ -9,14 +9,8 @@ import {
   Activity, 
   Settings,
   Calculator,
-  Wallet,
-  FolderKanban,
   Bot,
   Sparkles,
-  HardHat,
-  ClipboardList,
-  Compass,
-  CalendarRange,
   Wand2,
   ChevronsLeft,
   ChevronsRight
@@ -68,27 +62,6 @@ const DEFAULT_SECTIONS: MenuSection[] = [
     title: 'DOKUMEN',
     items: [
       { id: 'documents', icon: <FileText size={20} />, label: 'Dokumen & SPK' },
-      { id: 'finance', icon: <Wallet size={20} />, label: 'Finance' },
-    ],
-  },
-  {
-    title: 'DELIVERY',
-    items: [
-      { id: 'design-monitoring', icon: <Compass size={20} />, label: 'Design Monitoring' },
-      { id: 'planning', icon: <CalendarRange size={20} />, label: 'Planning & Scheduling' },
-    ],
-  },
-  {
-    title: 'REPORTING',
-    items: [
-      { id: 'reporting', icon: <ClipboardList size={20} />, label: 'Reporting' },
-    ],
-  },
-  {
-    title: 'EKSEKUSI',
-    items: [
-      { id: 'projects', icon: <FolderKanban size={20} />, label: 'Projects' },
-      { id: 'project-control', icon: <HardHat size={20} />, label: 'Project Control' },
     ],
   },
   {
@@ -109,7 +82,7 @@ const DEFAULT_SECTIONS: MenuSection[] = [
 ]
 
 // Load saved order per section from localStorage
-const SIDEBAR_VERSION = '3' // bump this when menu structure changes
+const SIDEBAR_VERSION = '5' // bump this when menu structure changes
 function loadSectionOrder(): Record<string, PageType[]> {
   try {
     const ver = localStorage.getItem('sidebar_version')
