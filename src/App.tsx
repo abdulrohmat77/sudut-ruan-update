@@ -24,6 +24,7 @@ import Reporting from './pages/Reporting'
 import DesignMonitoring from './pages/DesignMonitoring'
 import Planning from './pages/Planning'
 import AIContentEngine from './pages/AIContentEngine'
+import LoadingScreen from './components/LoadingScreen'
 import { SpkPrefill, InvoicePrefill } from './services/spkData'
 import { supabase, AIConfigService } from './services/supabaseClient'
 import { authService } from './services/auth'
@@ -131,6 +132,13 @@ function App() {
     })
   const [chatBadge, setChatBadge] = useState(0)
   const [logo, setLogo] = useState<string>('')
+  const [booting, setBooting] = useState(true)
+
+  // Loading screen awal (logo SRA berkedip) selama ~1.6 dtk.
+  useEffect(() => {
+    const t = setTimeout(() => setBooting(false), 1600)
+    return () => clearTimeout(t)
+  }, [])
   
   // ACOS Theme Logic — single source of truth in localStorage
   const [theme, setThemeState] = useState(() => localStorage.getItem('acos_theme') || 'Gelap')
@@ -279,6 +287,10 @@ function App() {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
 
   const clearNotifications = () => setNotifications([])
+
+  if (booting) {
+    return <LoadingScreen logo={logo} />
+  }
 
   if (!authed) {
     return <LoginPage onSuccess={() => setAuthed(true)} />
