@@ -476,8 +476,8 @@ const ChatMonitoring: React.FC<ChatMonitoringProps> = ({
                     <Icon name={isChecked ? "CheckSquare" : "Square"} size={18} color={isChecked ? T.red : T.dim} style={{ flexShrink: 0 }} />
                   )}
                   <div style={{ position: "relative" }}>
-                    <Avatar initials={(conv.client_name || '?').charAt(0).toUpperCase()} color={statusColor[conv.status] || T.sky} size={36} />
-                    <span style={{ position: "absolute", bottom: -2, right: -2, width: 14, height: 14, borderRadius: "50%", background: conv.source === 'whatsapp' ? T.green : T.red, border: `2px solid ${T.panel}`, display: "grid", placeItems: "center", fontSize: 7, fontWeight: 800, color: "#fff" }}>
+                    <Avatar initials={(conv.client_name || '?').charAt(0).toUpperCase()} color={conv.source === 'instagram' ? '#E1306C' : (statusColor[conv.status] || T.sky)} size={36} />
+                    <span style={{ position: "absolute", bottom: -2, right: -2, width: 14, height: 14, borderRadius: "50%", background: conv.source === 'whatsapp' ? T.green : '#E1306C', border: `2px solid ${T.panel}`, display: "grid", placeItems: "center", fontSize: 7, fontWeight: 800, color: "#fff" }}>
                       {conv.source === 'whatsapp' ? 'W' : 'I'}
                     </span>
                   </div>
@@ -514,7 +514,7 @@ const ChatMonitoring: React.FC<ChatMonitoringProps> = ({
                 title="Lihat info kontak & rangkuman AI"
                 style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}
               >
-                <Avatar initials={(selectedConv.client_name || '?').charAt(0).toUpperCase()} color={statusColor[selectedConv.status] || T.sky} size={36} />
+                <Avatar initials={(selectedConv.client_name || '?').charAt(0).toUpperCase()} color={selectedConv.source === 'instagram' ? '#E1306C' : (statusColor[selectedConv.status] || T.sky)} size={36} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 800, color: T.txt, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedConv.client_name || 'Pelanggan'}</div>
                   <div style={{ fontSize: 10, color: T.dim, fontFamily: T.mono }}>{selectedConv.source.toUpperCase()} · {selectedConv.id}</div>
@@ -715,7 +715,7 @@ const ChatMonitoring: React.FC<ChatMonitoringProps> = ({
           {selectedConv ? (
             <>
               <div style={{ textAlign: "center", padding: "20px 10px", background: T.panel, border: `1px solid ${T.line}`, borderRadius: 12, marginBottom: 16 }}>
-                <Avatar initials={(selectedConv.client_name || '?').charAt(0).toUpperCase()} color={statusColor[selectedConv.status] || T.sky} size={64} />
+                <Avatar initials={(selectedConv.client_name || '?').charAt(0).toUpperCase()} color={selectedConv.source === 'instagram' ? '#E1306C' : (statusColor[selectedConv.status] || T.sky)} size={64} />
                 <div style={{ fontSize: 15, fontWeight: 800, color: T.txt, marginTop: 12 }}>{selectedConv.client_name || 'Pelanggan'}</div>
                 <div style={{ fontSize: 11, color: T.dim, fontFamily: T.mono, marginTop: 4 }}>{selectedConv.id}</div>
                 <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 999, border: `1px solid ${selectedConv.mode === 'ai' ? T.sky : T.amber}55`, background: selectedConv.mode === 'ai' ? "rgba(74,179,216,0.15)" : "rgba(245,158,11,0.15)", color: selectedConv.mode === 'ai' ? T.sky : T.amber, fontSize: 9.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, marginTop: 12 }}>
