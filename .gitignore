@@ -1,3 +1,6 @@
 node_modules/
 dist/
 .env
+
+# n8n workflows (berisi referensi credential / API key — jangan di-push)
+n8n-workflows/
