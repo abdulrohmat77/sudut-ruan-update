@@ -15,7 +15,7 @@ const InvoiceBuilder = ({ onBack, prefill }: Props) => {
 
   // URL iframe + data prefill (dari SPK) lewat query param.
   const iframeSrc = (() => {
-    const base = '/template_dokument/Invoice _ Tagihan Template.html?v=20260612-4'
+    const base = '/template_dokument/Invoice%20_%20Tagihan%20Template.html?v=20260614-1'
     if (!prefill) return base
     try {
       return `${base}&data=${encodeURIComponent(JSON.stringify(prefill))}`

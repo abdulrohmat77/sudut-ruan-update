@@ -16,7 +16,11 @@ export default defineConfig({
       // Naikkan limit ukuran file yang di-precache workbox (default 2 MiB).
       // Bundle utama bisa >2 MB sehingga build Netlify gagal tanpa ini.
       workbox: {
-        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024 // 6 MiB
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024, // 6 MiB
+        // Jangan kembalikan app shell (index.html) untuk request file template
+        // & PDF di /template_dokument/ atau /uploads/ — biar iframe load HTML asli,
+        // bukan dashboard. Tanpa ini, Invoice Builder malah nampilin dashboard nested.
+        navigateFallbackDenylist: [/^\/template_dokument\//, /^\/uploads\//, /\.html$/]
       },
       manifest: {
         name: 'Kiro by Sudut Ruang',

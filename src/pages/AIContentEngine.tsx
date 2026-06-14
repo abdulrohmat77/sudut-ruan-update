@@ -2,7 +2,51 @@ import { useEffect, useState } from 'react'
 import { T, Panel, Btn } from '../components/AcosUI'
 import { AiContentService, DBAiContent } from '../services/supabaseClient'
 import { n8nService } from '../services/n8nWebhookService'
-import { Sparkles, Loader2, Trash2, Image as ImageIcon, Calendar, Wand2 } from 'lucide-react'
+import { Sparkles, Loader2, Trash2, Image as ImageIcon, Calendar, Wand2, RotateCw } from 'lucide-react'
+
+// Gambar konten dengan state loading + error + retry (Pollinations kadang lambat/queue full)
+function ContentImage({ url }: { url: string | null }) {
+  const [status, setStatus] = useState<'loading' | 'ok' | 'error'>(url ? 'loading' : 'error')
+  const [bust, setBust] = useState(0)
+
+  useEffect(() => { setStatus(url ? 'loading' : 'error') }, [url, bust])
+
+  const src = url ? (bust ? `${url}${url.includes('?') ? '&' : '?'}_r=${bust}` : url) : ''
+
+  return (
+    <div style={{ aspectRatio: '1/1', background: T.inset, position: 'relative', overflow: 'hidden' }}>
+      {url && (
+        <img
+          key={bust}
+          src={src}
+          alt=""
+          loading="lazy"
+          onLoad={() => setStatus('ok')}
+          onError={() => setStatus('error')}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: status === 'ok' ? 'block' : 'none' }}
+        />
+      )}
+      {status === 'loading' && (
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, color: T.dim }}>
+          <Loader2 size={24} className="animate-spin" style={{ color: T.sky }} />
+          <span style={{ fontSize: 10.5 }}>Memuat gambar...</span>
+        </div>
+      )}
+      {status === 'error' && (
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, color: T.dim }}>
+          <ImageIcon size={26} style={{ opacity: 0.4 }} />
+          {url ? (
+            <button onClick={() => setBust((b) => b + 1)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', background: T.inset, border: `1px solid ${T.line}`, borderRadius: 7, color: T.sky, fontSize: 10.5, fontWeight: 700, cursor: 'pointer' }}>
+              <RotateCw size={12} /> Coba lagi
+            </button>
+          ) : (
+            <span style={{ fontSize: 10.5 }}>Belum ada gambar</span>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 const STATUS = {
   draft: { label: 'Draft', color: T.dim },
@@ -127,15 +171,9 @@ const AIContentEngine = () => {
             return (
               <Panel key={c.id} style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                 {/* Image */}
-                <div style={{ aspectRatio: '1/1', background: T.inset, position: 'relative', overflow: 'hidden' }}>
-                  {c.image_url ? (
-                    <img src={c.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.dim }}>
-                      <ImageIcon size={32} style={{ opacity: 0.4 }} />
-                    </div>
-                  )}
-                  <span style={{ position: 'absolute', top: 10, left: 10, fontSize: 9, fontWeight: 900, textTransform: 'uppercase', padding: '3px 9px', borderRadius: 999, background: `${st.color}dd`, color: '#fff' }}>{st.label}</span>
+                <div style={{ position: 'relative' }}>
+                  <ContentImage url={c.image_url} />
+                  <span style={{ position: 'absolute', top: 10, left: 10, fontSize: 9, fontWeight: 900, textTransform: 'uppercase', padding: '3px 9px', borderRadius: 999, background: `${st.color}dd`, color: '#fff', zIndex: 2 }}>{st.label}</span>
                 </div>
                 {/* Body */}
                 <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>

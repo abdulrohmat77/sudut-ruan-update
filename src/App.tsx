@@ -134,9 +134,12 @@ function App() {
   const [logo, setLogo] = useState<string>('')
   const [booting, setBooting] = useState(true)
 
-  // Loading screen awal (logo SRA berkedip) selama ~1.6 dtk.
+  // Loading screen awal (logo SRA berkedip) selama ~2 dtk.
   useEffect(() => {
-    const t = setTimeout(() => setBooting(false), 1600)
+    // Preload logo biar langsung tampil di loading screen.
+    const img = new Image()
+    img.src = '/logo-main.png'
+    const t = setTimeout(() => setBooting(false), 2000)
     return () => clearTimeout(t)
   }, [])
   
