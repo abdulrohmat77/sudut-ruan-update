@@ -13,6 +13,11 @@ export default defineConfig({
       devOptions: {
         enabled: false
       },
+      // Naikkan limit ukuran file yang di-precache workbox (default 2 MiB).
+      // Bundle utama bisa >2 MB sehingga build Netlify gagal tanpa ini.
+      workbox: {
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024 // 6 MiB
+      },
       manifest: {
         name: 'Kiro by Sudut Ruang',
         short_name: 'Kiro',
