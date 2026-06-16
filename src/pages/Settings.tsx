@@ -182,7 +182,7 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange, theme: propTheme, den
       </div>
 
       {activeTab === 'Umum' && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20, alignItems: "start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: 20, alignItems: "start" }}>
           {/* Tampilan */}
           <Panel pad={20}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
@@ -332,7 +332,7 @@ const Settings: React.FC<SettingsProps> = ({ onLogoChange, theme: propTheme, den
       {activeTab === 'Integrasi' && (
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           <PinLock locked={locked} onChange={setLocked} lockedTitle="Integrasi Terkunci" lockedDesc="Pengaturan integrasi dikunci untuk mencegah perubahan URL secara tidak sengaja." />
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20, alignItems: "start" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: 20, alignItems: "start" }}>
             <Panel pad={20}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
                 <div style={{ fontSize: 16, fontWeight: 800, color: T.txt }}>Integrasi</div>
