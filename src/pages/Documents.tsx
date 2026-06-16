@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import { DocumentService, DBDocument } from '../services/supabaseClient'
+import { DocumentService, DBDocument, supabase } from '../services/supabaseClient'
 import { T } from '../components/AcosUI'
-import { FileText, FileSignature, Receipt, Plus, Search, X, Loader2, Download, Trash2, ArrowRight } from 'lucide-react'
+import { FileText, FileSignature, Receipt, Plus, Search, X, Loader2, Download, Trash2, ArrowRight, Send } from 'lucide-react'
 
 import { PageType } from '../App'
 import { SpkPrefill, InvoicePrefill } from '../services/spkData'
@@ -48,7 +48,8 @@ const Documents = ({ onNavigate, onContinueToSpk, onContinueToInvoice }: Props) 
   const [search, setSearch] = useState('')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
-  const [alertModal, setAlertModal] = useState<{ title: string, message: string, type: 'error'|'info' } | null>(null)
+  const [alertModal, setAlertModal] = useState<{ title: string, message: string, type: 'error'|'info'|'success' } | null>(null)
+  const [sendingId, setSendingId] = useState<string | null>(null)
 
   const loadData = async () => {
     setLoading(true)
@@ -76,6 +77,83 @@ const Documents = ({ onNavigate, onContinueToSpk, onContinueToInvoice }: Props) 
     } else {
       await loadData()
       setDeleteConfirmId(null)
+    }
+  }
+
+  // Normalisasi nomor WA: digit saja, awalan 0 -> 62, awalan 8 -> 62
+  const normalizePhone = (raw?: string | null): string => {
+    const digits = (raw || '').toString().replace(/\D/g, '')
+    if (!digits) return ''
+    if (digits.startsWith('0')) return '62' + digits.slice(1)
+    if (digits.startsWith('62')) return digits
+    if (digits.startsWith('8')) return '62' + digits
+    return digits
+  }
+
+  const handleSendWhatsApp = async (doc: DBDocument) => {
+    if (sendingId) return
+
+    if (!doc.file_url) {
+      setAlertModal({ title: 'Gagal Kirim', message: 'Dokumen ini belum punya file PDF (file_url kosong).', type: 'error' })
+      return
+    }
+
+    const recipient = normalizePhone(doc.client_phone)
+    if (!recipient) {
+      setAlertModal({ title: 'Nomor Tidak Ada', message: 'Klien dokumen ini belum punya nomor WhatsApp. Edit dokumen dulu untuk menambahkan nomor.', type: 'error' })
+      return
+    }
+
+    setSendingId(doc.id)
+    try {
+      // Ambil webhook URL dari ai_config (sama dengan auto-flow)
+      const configRow = await supabase.from('ai_config').select('value').eq('key', 'webhook_pdf_url').single()
+      const n8nWebhookUrl = configRow?.data?.value || 'https://n8n.example.com/webhook/invoice-generated'
+
+      const d = (doc.data || {}) as Record<string, any>
+
+      const webhookRes = await fetch(n8nWebhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invoice_number: doc.proposal_no,
+          client_name: doc.client_name,
+          client_phone: recipient,
+          recipient: recipient,
+          project_name: d.projName || d.NAMA_PROYEK || d.projectName || '',
+          contract_value: d.contractValue || d.TOTAL_FEE || d.totalAvg || '',
+          total_value: d.total || d.TOTAL_FEE || '',
+          pdf_url: doc.file_url,
+          timestamp: new Date().toISOString(),
+        })
+      })
+
+      if (webhookRes.ok) {
+        // Update status di Supabase ke 'sent' (kalau belum)
+        if (doc.status !== 'sent') {
+          await DocumentService.updateStatus(doc.id, 'sent', doc.file_url || undefined)
+          await loadData()
+        }
+        setAlertModal({
+          title: 'Berhasil Dikirim',
+          message: `Dokumen berhasil dikirim lewat WhatsApp ke No ${recipient}.`,
+          type: 'success'
+        })
+      } else {
+        setAlertModal({
+          title: 'Gagal Kirim',
+          message: `Webhook n8n menolak (status ${webhookRes.status}). Cek workflow n8n-nya.`,
+          type: 'error'
+        })
+      }
+    } catch (err: any) {
+      setAlertModal({
+        title: 'Gagal Kirim',
+        message: 'Tidak dapat memanggil webhook: ' + (err?.message || 'Unknown error'),
+        type: 'error'
+      })
+    } finally {
+      setSendingId(null)
     }
   }
 
@@ -213,8 +291,55 @@ const Documents = ({ onNavigate, onContinueToSpk, onContinueToInvoice }: Props) 
                           Invoice <ArrowRight size={12} />
                         </button>
                       )}
-                      <button style={{ padding: 7, background: T.inset, border: `1px solid ${T.line}`, borderRadius: 8, cursor: 'pointer', color: T.dim, display: 'inline-flex', transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = T.sky} onMouseLeave={e => e.currentTarget.style.color = T.dim} title="Download">
+                      <button
+                        onClick={() => {
+                          if (!doc.file_url) return
+                          // Buka file di tab baru — Cloudinary akan trigger download/preview sesuai content-type
+                          window.open(doc.file_url, '_blank', 'noopener,noreferrer')
+                        }}
+                        disabled={!doc.file_url}
+                        title={doc.file_url ? 'Download / buka PDF' : 'Belum ada file PDF'}
+                        style={{
+                          padding: 7,
+                          background: T.inset,
+                          border: `1px solid ${T.line}`,
+                          borderRadius: 8,
+                          cursor: doc.file_url ? 'pointer' : 'not-allowed',
+                          color: T.dim,
+                          opacity: doc.file_url ? 1 : 0.4,
+                          display: 'inline-flex',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={e => { if (doc.file_url) e.currentTarget.style.color = T.sky }}
+                        onMouseLeave={e => { e.currentTarget.style.color = T.dim }}
+                      >
                         <Download size={14} />
+                      </button>
+                      <button
+                        onClick={() => handleSendWhatsApp(doc)}
+                        disabled={sendingId === doc.id || !doc.file_url || !doc.client_phone}
+                        title={
+                          !doc.file_url ? 'Belum ada file PDF' :
+                          !doc.client_phone ? 'Klien belum punya nomor WA' :
+                          'Kirim ke WhatsApp klien'
+                        }
+                        style={{
+                          padding: 7,
+                          background: T.inset,
+                          border: `1px solid ${T.line}`,
+                          borderRadius: 8,
+                          cursor: (sendingId === doc.id || !doc.file_url || !doc.client_phone) ? 'not-allowed' : 'pointer',
+                          color: (!doc.file_url || !doc.client_phone) ? T.dim : T.green,
+                          opacity: (!doc.file_url || !doc.client_phone) ? 0.5 : 1,
+                          display: 'inline-flex',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={e => { if (!(sendingId === doc.id || !doc.file_url || !doc.client_phone)) e.currentTarget.style.background = `${T.green}18` }}
+                        onMouseLeave={e => { e.currentTarget.style.background = T.inset }}
+                      >
+                        {sendingId === doc.id
+                          ? <Loader2 size={14} className="animate-spin" />
+                          : <Send size={14} />}
                       </button>
                       <button onClick={() => handleDeleteClick(doc.id)} style={{ padding: 7, background: T.inset, border: `1px solid ${T.line}`, borderRadius: 8, cursor: 'pointer', color: T.dim, display: 'inline-flex', transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = '#ef4444'} onMouseLeave={e => e.currentTarget.style.color = T.dim} title="Hapus">
                         <Trash2 size={14} />
@@ -295,14 +420,22 @@ const Documents = ({ onNavigate, onContinueToSpk, onContinueToInvoice }: Props) 
       {alertModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div style={{ background: T.panel, padding: 32, borderRadius: 20, width: '100%', maxWidth: 400, border: `1px solid ${T.line}`, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', textAlign: 'center' }}>
-            <div style={{ width: 64, height: 64, borderRadius: '50%', background: alertModal.type === 'error' ? '#ef444420' : `${T.sky}20`, color: alertModal.type === 'error' ? '#ef4444' : T.sky, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 32 }}>{alertModal.type === 'error' ? 'error' : 'info'}</span>
-            </div>
-            <h3 style={{ fontSize: 20, fontWeight: 700, margin: '0 0 12px', color: T.txt }}>{alertModal.title}</h3>
-            <p style={{ fontSize: 14, color: T.dim, margin: '0 0 24px', lineHeight: 1.5 }}>{alertModal.message}</p>
-            <button onClick={() => setAlertModal(null)} style={{ width: '100%', padding: 12, borderRadius: 12, border: 'none', background: alertModal.type === 'error' ? '#ef4444' : T.sky, color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
-              Tutup
-            </button>
+            {(() => {
+              const accent = alertModal.type === 'error' ? '#ef4444' : alertModal.type === 'success' ? T.green : T.sky
+              const iconName = alertModal.type === 'error' ? 'error' : alertModal.type === 'success' ? 'check_circle' : 'info'
+              return (
+                <>
+                  <div style={{ width: 64, height: 64, borderRadius: '50%', background: `${accent}20`, color: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 32 }}>{iconName}</span>
+                  </div>
+                  <h3 style={{ fontSize: 20, fontWeight: 700, margin: '0 0 12px', color: T.txt }}>{alertModal.title}</h3>
+                  <p style={{ fontSize: 14, color: T.dim, margin: '0 0 24px', lineHeight: 1.5 }}>{alertModal.message}</p>
+                  <button onClick={() => setAlertModal(null)} style={{ width: '100%', padding: 12, borderRadius: 12, border: 'none', background: accent, color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
+                    Tutup
+                  </button>
+                </>
+              )
+            })()}
           </div>
         </div>
       )}

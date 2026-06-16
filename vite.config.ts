@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import fs from 'fs'
+import path from 'path'
 
 export default defineConfig({
   plugins: [
@@ -49,10 +51,60 @@ export default defineConfig({
           }
         ]
       }
-    })
+    }),
+    // ── Plugin: serve /commandcenter/* dari public/commandcenter/ ──────────────
+    // Vite SPA mode normalnya fallback semua navigation ke index.html (dashboard).
+    // Plugin ini intercept request ke /commandcenter/* SEBELUM SPA fallback
+    // dan serve file statis Command Center yang benar.
+    {
+      name: 'serve-commandcenter',
+      apply: 'serve',
+      enforce: 'pre',
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          const url = req.url || '/'
+          if (!url.startsWith('/commandcenter')) return next()
+
+          // Strip query string
+          const urlPath = url.split('?')[0]
+          const publicDir = path.resolve(__dirname, 'public')
+
+          // Coba serve file persis (untuk .js, .css, .png, dll)
+          let filePath = path.join(publicDir, urlPath)
+
+          // Kalau path adalah folder atau tidak ada ext → serve index.html-nya
+          if (!path.extname(filePath) || urlPath === '/commandcenter/' || urlPath === '/commandcenter') {
+            filePath = path.join(publicDir, 'commandcenter', 'index.html')
+          }
+
+          if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+            const ext = path.extname(filePath).toLowerCase()
+            const mime: Record<string, string> = {
+              '.html': 'text/html; charset=utf-8',
+              '.js': 'application/javascript',
+              '.css': 'text/css',
+              '.png': 'image/png',
+              '.svg': 'image/svg+xml',
+              '.ico': 'image/x-icon',
+              '.json': 'application/json',
+              '.txt': 'text/plain',
+            }
+            res.setHeader('Content-Type', mime[ext] || 'application/octet-stream')
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+            fs.createReadStream(filePath).pipe(res as any)
+            return
+          }
+          next()
+        })
+      }
+    }
   ],
   server: {
     port: 3000,
-    host: true
-  }
+    host: true,
+    fs: {
+      strict: false,
+    },
+  },
+  appType: 'spa',
 })

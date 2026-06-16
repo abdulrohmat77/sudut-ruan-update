@@ -591,10 +591,20 @@ export function buildProposalHTML(data: ProposalData): string {
   footer { margin-top:40px; border-top:1px solid var(--line); padding-top:20px; font-size:12px; color:var(--text-muted); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; align-items:center; }
   footer .footer-tagline { width:100%; text-align:center; margin-top:8px; font-size:9px; letter-spacing:0.22em; color:var(--secondary-color); font-weight:700; }
   @media print {
-    body { background:#fff; padding:0; }
-    .proposal-paper { box-shadow:none; padding:32px; max-width:none; }
+    @page { size: A4; margin: 10mm 12mm; }
+    html, body { background:#fff !important; }
+    body { padding:0 !important; margin:0 !important; display:block !important; }
+    .proposal-paper { box-shadow:none !important; padding:0 !important; max-width:none !important; width:auto !important; border-radius:0 !important; }
+    .proposal-paper::before { display:none !important; }
+    section { margin-bottom:18px !important; page-break-inside:avoid; break-inside:avoid; }
+    header { margin-bottom:14px !important; }
+    .meta-info { margin-bottom:18px !important; }
+    .subtitle { margin-bottom:18px !important; }
+    h2 { margin-bottom:12px !important; }
     .page-break { break-before:page; page-break-before:always; }
-    .gallery-item, .card, .color-swatch, .kpi, .pillar, .qa, .why, .scope-col { break-inside:avoid; page-break-inside:avoid; }
+    .gallery-item, .card, .color-swatch, .kpi, .pillar, .qa, .why, .scope-col, .calculation-box, .term-table, .rab-table, .bank-box { break-inside:avoid; page-break-inside:avoid; }
+    img { max-width:100%; }
+    .closing { break-inside:avoid; page-break-inside:avoid; }
   }
   @media (max-width:640px) {
     .proposal-paper { padding:28px 20px; }

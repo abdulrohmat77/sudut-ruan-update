@@ -242,3 +242,53 @@
 .sra-blink {
   animation: sra-blink 1.1s ease-in-out infinite;
 }
+
+/* ── Mobile typography scaling ───────────────────────────────────
+   Banyak page header pakai inline style fontSize 22-26 yang kebesaran
+   di layar < 640px. Aturan di sini override semua h1/h2/h3 jadi
+   ukuran proporsional via !important (menang specificity dari inline). */
+@media (max-width: 640px) {
+  h1 {
+    font-size: 18px !important;
+    line-height: 1.25 !important;
+    letter-spacing: -0.3px !important;
+  }
+  h2 {
+    font-size: 16px !important;
+    line-height: 1.3 !important;
+  }
+  h3 {
+    font-size: 15px !important;
+    line-height: 1.35 !important;
+  }
+  /* Ikon material symbols yang sengaja besar di modal — kecilkan sedikit */
+  .material-symbols-outlined[style*="font-size: 32"],
+  .material-symbols-outlined[style*="font-size:32"] {
+    font-size: 26px !important;
+  }
+
+  /* Inline-styled text 15-20px (umum dipakai untuk nama klien, judul card, dst)
+     Sering kebesaran di mobile. Skala turun ke 13-14px. */
+  div[style*="font-size: 15"], span[style*="font-size: 15"],
+  div[style*="font-size:15"], span[style*="font-size:15"],
+  div[style*="font-size: 16"], span[style*="font-size: 16"],
+  div[style*="font-size:16"], span[style*="font-size:16"] {
+    font-size: 13.5px !important;
+  }
+  div[style*="font-size: 17"], span[style*="font-size: 17"],
+  div[style*="font-size:17"], span[style*="font-size:17"],
+  div[style*="font-size: 18"], span[style*="font-size: 18"],
+  div[style*="font-size:18"], span[style*="font-size:18"],
+  div[style*="font-size: 19"], span[style*="font-size: 19"],
+  div[style*="font-size:19"], span[style*="font-size:19"],
+  div[style*="font-size: 20"], span[style*="font-size: 20"],
+  div[style*="font-size:20"], span[style*="font-size:20"] {
+    font-size: 14.5px !important;
+  }
+}
+
+/* Layar ekstra kecil (≤ 380px, iPhone SE / Android kecil) */
+@media (max-width: 380px) {
+  h1 { font-size: 17px !important; }
+  h2 { font-size: 15px !important; }
+}
