@@ -8,8 +8,7 @@ import {
   formatIDR,
   formatIDRShort,
 } from '../services/pricingService'
-import { AIConfigService, ClientService, DocumentService } from '../services/supabaseClient'
-import { n8nService } from '../services/n8nWebhookService'
+import { AIConfigService, DocumentService } from '../services/supabaseClient'
 import ProposalPreviewModal from '../components/ProposalPreviewModal'
 import { ProposalData, defaultTimeline } from '../services/proposalTemplate'
 import { SpkPrefill } from '../services/spkData'
@@ -76,12 +75,6 @@ const Estimator: React.FC<{ onCreateSpk?: (prefill: SpkPrefill) => void }> = ({ 
   const [clientName, setClientName] = useState('')
   const [clientPhone, setClientPhone] = useState('')
   const [projectName, setProjectName] = useState('')
-
-  // Action states
-  const [savingCRM, setSavingCRM] = useState(false)
-  const [savedCRM, setSavedCRM] = useState(false)
-  const [sendingWA, setSendingWA] = useState(false)
-  const [sentWA, setSentWA] = useState(false)
 
   // Proposal preview
   const [showProposal, setShowProposal] = useState(false)
@@ -163,106 +156,6 @@ const Estimator: React.FC<{ onCreateSpk?: (prefill: SpkPrefill) => void }> = ({ 
     })
     return grouped
   }, [])
-
-  const handleSaveCRM = async () => {
-    if (!rab) return
-    setSavingCRM(true)
-    const normalizedPhone = clientPhone.replace(/[^\d]/g, '')
-    const clientId =
-      normalizedPhone ||
-      (clientName
-        ? clientName.replace(/\s+/g, '_').toLowerCase() + '_' + Date.now()
-        : `estimator_${Date.now()}`)
-
-    await ClientService.upsert({
-      id: clientId,
-      name: clientName || 'Klien Estimator',
-      phone: normalizedPhone || null,
-      source: 'dashboard',
-      status: 'estimasi',
-      building_type: selectedConstruction?.type || null,
-      tier: selectedConstruction?.tier || null,
-      area_sqm: parseFloat(area) || null,
-      rab_avg: rab.rabAvg,
-      fee_avg: fee?.feeAvg || null,
-      last_contact_at: new Date().toISOString(),
-      metadata: { projectName, serviceType: selectedService?.serviceName },
-    })
-
-    // Simpan sebagai dokumen RAB
-    if (fee) {
-      await DocumentService.insert({
-        conversation_id: null,
-        client_phone: normalizedPhone || null,
-        client_name: clientName || 'Klien Estimator',
-        type: 'rab',
-        status: 'draft',
-        file_url: null,
-        proposal_no: `RAB-${Date.now()}`,
-        data: {
-          constructionId,
-          area: parseFloat(area),
-          rabMin: rab.rabMin,
-          rabAvg: rab.rabAvg,
-          rabMax: rab.rabMax,
-          serviceId,
-          feeAvg: fee.feeAvg,
-          ppn: fee.ppn,
-          totalAvg: fee.totalAvg,
-          clientName,
-          projectName,
-        },
-        sent_at: null,
-        valid_until: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-      })
-    }
-
-    setSavingCRM(false)
-    setSavedCRM(true)
-    setTimeout(() => setSavedCRM(false), 3000)
-  }
-
-  const handleSendWA = async () => {
-    if (!rab || !fee) return
-    const normalizedPhone = clientPhone.replace(/[^\d]/g, '')
-    if (!normalizedPhone) {
-      alert('Isi Nomor WhatsApp klien terlebih dahulu (contoh: 6281234567890).')
-      return
-    }
-    setSendingWA(true)
-
-    const template = `Halo ${clientName || 'Kak'}, ini estimasi kasarnya ya.
-
-Proyek: ${selectedConstruction?.type || ''} ${selectedConstruction?.tier || ''}
-Luas: ${area}m²
-
-Estimasi RAB Konstruksi:
-${formatIDRShort(rab.rabMin)} - ${formatIDRShort(rab.rabMax)}
-(rata-rata ${formatIDRShort(rab.rabAvg)})
-
-Fee Jasa Desain Sudut Ruang:
-${formatIDR(fee.feeAvg)}
-
-PPN 11%: ${formatIDR(fee.ppn)}
-Total Fee Jasa: ${formatIDR(fee.totalAvg)}
-
-Ini masih estimasi awal ya, bisa berubah setelah survey dan diskusi detail.
-
-Mau kita buatkan proposal lengkap?`
-
-    await n8nService.sendMessageToClient({
-      conversationId: normalizedPhone,
-      clientPhoneOrUsername: normalizedPhone,
-      message: template,
-      source: 'whatsapp',
-      senderRole: 'ai',
-      humanOperator: 'Dashboard Estimator',
-    })
-
-    setSendingWA(false)
-    setSentWA(true)
-    setTimeout(() => setSentWA(false), 3000)
-  }
 
   // Build proposal data from the current estimate for preview / print / save.
   const proposalNoRef = useMemo(() => `PROP-${Date.now()}`, [clientName, projectName, constructionId, area, serviceId])
@@ -826,26 +719,6 @@ Mau kita buatkan proposal lengkap?`
             >
               <span className="material-symbols-outlined">visibility</span>
               Preview & Cetak Proposal (PDF)
-            </button>
-            <button
-              onClick={handleSendWA}
-              disabled={sendingWA}
-              className="flex items-center justify-center gap-sm py-3 border border-outline-variant rounded-lg font-bold hover:bg-surface-container transition-colors disabled:opacity-50 md:col-span-2"
-            >
-              <span className="material-symbols-outlined">
-                {sendingWA ? 'hourglass_empty' : 'chat'}
-              </span>
-              {sentWA ? '✓ Terkirim!' : sendingWA ? 'Mengirim...' : 'Kirim Estimasi via WA'}
-            </button>
-            <button
-              onClick={handleSaveCRM}
-              disabled={savingCRM}
-              className="flex items-center justify-center gap-sm py-3 border border-outline-variant rounded-lg font-bold hover:bg-surface-container transition-colors disabled:opacity-50 md:col-span-2"
-            >
-              <span className="material-symbols-outlined">
-                {savingCRM ? 'hourglass_empty' : 'save'}
-              </span>
-              {savedCRM ? '✓ Tersimpan!' : savingCRM ? 'Menyimpan...' : 'Save to CRM'}
             </button>
             {onCreateSpk && (
               <button

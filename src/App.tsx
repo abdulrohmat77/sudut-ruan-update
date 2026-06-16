@@ -18,6 +18,7 @@ import SpkBuilder from './pages/SpkBuilder'
 import ProposalBuilder from './pages/ProposalBuilder'
 import CustomerCRM from './pages/CustomerCRM'
 import AIContentEngine from './pages/AIContentEngine'
+import KnowledgeBase from './pages/KnowledgeBase'
 import LoadingScreen from './components/LoadingScreen'
 import CommandCenterLauncher from './components/CommandCenterLauncher'
 import { SpkPrefill, InvoicePrefill } from './services/spkData'
@@ -35,6 +36,7 @@ export type PageType =
   | 'documents'
   | 'ai-studio'
   | 'ai-content'
+  | 'knowledge'
   | 'analytics'
   | 'automation'
   | 'settings'
@@ -51,6 +53,7 @@ const pageTitles: Record<PageType, string> = {
   documents: 'Dokumen & SPK',
   'ai-studio': 'AI Studio',
   'ai-content': 'AI Content Engine',
+  knowledge: 'Knowledge AI',
   analytics: 'Analitik & KPI',
   automation: 'Pusat Automasi',
   settings: 'Pengaturan',
@@ -313,6 +316,8 @@ function App() {
         return <AIStudio />
       case 'ai-content':
         return <AIContentEngine />
+      case 'knowledge':
+        return <KnowledgeBase />
       case 'invoice-builder':
         return <InvoiceBuilder prefill={invoicePrefill} onBack={() => setCurrentPage('documents')} />
       case 'spk-builder':

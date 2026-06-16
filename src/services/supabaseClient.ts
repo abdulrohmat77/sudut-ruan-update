@@ -813,6 +813,66 @@ export const AiSummaryService = {
 }
 
 // ============================================================
+// AI Skills Service (Knowledge Base — skill/keterampilan AI)
+// ============================================================
+export interface DBAiSkill {
+  id: string
+  title: string
+  description: string | null
+  content: string | null
+  category: string | null
+  tags: string[]
+  file_url: string | null
+  file_name: string | null
+  file_type: string | null
+  file_size: number | null
+  is_active: boolean
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export const AiSkillService = {
+  async getAll(includeInactive = false): Promise<DBAiSkill[]> {
+    let q = supabase.from('ai_skills').select('*').order('created_at', { ascending: false })
+    if (!includeInactive) q = q.eq('is_active', true)
+    const { data, error } = await q
+    if (error) { console.error('ai_skills getAll error:', error); return [] }
+    return (data as DBAiSkill[]) || []
+  },
+  async insert(row: Partial<DBAiSkill> & { title: string }) {
+    const { data, error } = await supabase.from('ai_skills').insert({ ...row, updated_at: new Date().toISOString() }).select().single()
+    if (error) console.error('ai_skills insert error:', error)
+    return { data: data as DBAiSkill | null, error }
+  },
+  async update(id: string, patch: Partial<DBAiSkill>) {
+    const { error } = await supabase.from('ai_skills').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', id)
+    if (error) console.error('ai_skills update error:', error)
+    return { error }
+  },
+  async remove(id: string) {
+    const { error } = await supabase.from('ai_skills').delete().eq('id', id)
+    if (error) console.error('ai_skills delete error:', error)
+    return { error }
+  },
+  /** Upload file ke bucket "ai-skills". Mengembalikan { publicUrl, path }. */
+  async uploadFile(file: File): Promise<{ publicUrl: string; path: string } | null> {
+    const ts = Date.now()
+    const safeName = file.name.replace(/[^\w.\-]/g, '_')
+    const path = `${ts}-${safeName}`
+    const { error } = await supabase.storage.from('ai-skills').upload(path, file, { upsert: false })
+    if (error) { console.error('ai-skills upload error:', error); return null }
+    const { data } = supabase.storage.from('ai-skills').getPublicUrl(path)
+    return { publicUrl: data.publicUrl, path }
+  },
+  /** Hapus file di storage berdasarkan path relatif (mis. "1718...nama.docx"). */
+  async removeFileByPath(path: string) {
+    const { error } = await supabase.storage.from('ai-skills').remove([path])
+    if (error) console.error('ai-skills remove file error:', error)
+  },
+}
+
+// ============================================================
 // AI Config Service
 // ============================================================
 export const AIConfigService = {
